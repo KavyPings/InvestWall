@@ -1,0 +1,991 @@
+# Product Requirements Document (PRD)
+
+# InvestWall
+
+### AI-Driven Detection of Synthetic Media & Phishing Attacks for Retail Investors
+
+Version: 1.0
+
+Platform: Android
+
+---
+
+# 1. Overview
+
+InvestWall is an Android application designed to protect retail investors from AI-generated fraud, phishing attacks, deepfakes, impersonation attempts, and manipulated financial content.
+
+The application analyzes content received through SMS, email, WhatsApp, social media, documents, images, videos, and audio before the user acts on it.
+
+Unlike traditional spam filters, InvestWall performs multimodal AI analysis and produces an explainable trust score by combining evidence from specialized AI detection models.
+
+The application is designed around the problem statement of detecting synthetic media while also verifying authentic financial communications.
+
+---
+
+# 2. Problem Statement
+
+Generative AI has drastically reduced the effort required to create convincing scams.
+
+Examples include:
+
+* AI-generated phishing emails
+* Deepfake CEO videos
+* Voice cloning of financial advisors
+* Fake SEBI/NSE announcements
+* AI-written investment scams
+* Manipulated market news
+* Pump-and-dump campaigns on social media
+
+Retail investors often lack the expertise to determine whether content is authentic.
+
+InvestWall serves as a personal AI-powered trust layer between incoming content and the user's decision.
+
+---
+
+# 3. Objectives
+
+The application should:
+
+* Detect AI-generated images
+* Detect AI-generated videos
+* Detect AI-generated voice/audio
+* Detect AI-generated text
+* Detect phishing attacks
+* Detect impersonation attempts
+* Verify authenticity of financial communications
+* Explain why content was flagged
+* Provide an easy-to-understand Trust Score
+
+---
+
+# 4. Target Users
+
+Primary
+
+* Retail Investors
+* Beginner Investors
+* Stock Market Enthusiasts
+
+Secondary
+
+* Financial Advisors
+* Brokerage Employees
+* Market Analysts
+* Students
+
+---
+
+# 5. Supported Input Sources
+
+## Automatic Analysis
+
+### SMS
+
+Incoming SMS messages are automatically scanned using Android Broadcast Receivers.
+
+Checks include:
+
+* phishing
+* malicious URLs
+* AI-written language
+* urgency detection
+* sender analysis
+
+---
+
+### Email
+
+User connects Gmail using OAuth.
+
+Emails are fetched using Gmail API.
+
+The app analyzes:
+
+* subject
+* sender
+* headers
+* attachments
+* links
+* body
+
+---
+
+## User-Initiated Analysis
+
+Android Share Intent is used.
+
+The user presses
+
+Share
+
+↓
+
+InvestWall
+
+↓
+
+Analysis begins.
+
+Supported Apps
+
+* WhatsApp
+* Telegram
+* Instagram
+* Facebook
+* X
+* LinkedIn
+* Discord
+* Browser
+* File Manager
+
+Supported File Types
+
+* PDF
+* DOCX
+* TXT
+* PNG
+* JPG
+* JPEG
+* MP4
+* MOV
+* WAV
+* MP3
+* M4A
+
+---
+
+# 6. Functional Requirements
+
+The application contains six major analysis engines.
+
+---
+
+## Module 1 — Text Analysis Engine
+
+Purpose
+
+Detect AI-written financial scams and phishing messages.
+
+Input
+
+* SMS
+* Email
+* PDFs
+* WhatsApp
+* Social Media
+* OCR
+
+Pipeline
+
+Text
+
+↓
+
+Cleaning
+
+↓
+
+Tokenization
+
+↓
+
+Stylometric Analysis
+
+↓
+
+Phishing Detection
+
+↓
+
+Financial Scam Detection
+
+↓
+
+LLM Explanation
+
+Outputs
+
+* AI Likelihood
+* Scam Probability
+* Phishing Probability
+* Urgency Score
+* Trust Score
+
+---
+
+## Module 2 — Image Analysis Engine
+
+Purpose
+
+Detect AI-generated images.
+
+Input
+
+* Photos
+* Screenshots
+* Shared Images
+
+Pipeline
+
+Image
+
+↓
+
+Metadata Extraction
+
+↓
+
+Noise Analysis
+
+↓
+
+Compression Analysis
+
+↓
+
+Face Detection
+
+↓
+
+Deepfake Detection
+
+↓
+
+Evidence Generation
+
+Checks
+
+* GAN artifacts
+* Diffusion artifacts
+* Lighting inconsistencies
+* Reflection mismatch
+* Face warping
+* AI watermark
+* Metadata anomalies
+
+Output
+
+Image Authenticity Score
+
+---
+
+## Module 3 — Video Analysis Engine
+
+Purpose
+
+Detect AI-generated videos.
+
+Pipeline
+
+Video
+
+↓
+
+Frame Extraction
+
+↓
+
+Face Tracking
+
+↓
+
+Deepfake Detection
+
+↓
+
+Temporal Consistency
+
+↓
+
+Lip Sync Analysis
+
+↓
+
+Frame Aggregation
+
+↓
+
+Final Score
+
+Checks
+
+* Frame consistency
+* Blink frequency
+* Face morphing
+* Lip synchronization
+* Compression artifacts
+
+Output
+
+Video Authenticity Score
+
+---
+
+## Module 4 — Audio Analysis Engine
+
+Purpose
+
+Detect cloned voices and AI-generated speech.
+
+Pipeline
+
+Audio
+
+↓
+
+Noise Reduction
+
+↓
+
+Spectrogram Generation
+
+↓
+
+Deepfake Audio Detection
+
+↓
+
+Speech-to-Text
+
+↓
+
+Transcript Analysis
+
+↓
+
+LLM Explanation
+
+Checks
+
+* Voice cloning
+* Replay attacks
+* Neural vocoder artifacts
+* Synthetic speech
+* Scam language
+* Emotional manipulation
+
+Outputs
+
+Voice Authenticity
+
+Transcript Risk
+
+Overall Audio Trust Score
+
+---
+
+## Module 5 — Phishing Detection Engine
+
+Purpose
+
+Identify financial phishing attacks.
+
+Checks
+
+* malicious URLs
+* URL shorteners
+* fake domains
+* urgency language
+* fake login pages
+* suspicious attachments
+* sender impersonation
+
+Outputs
+
+Risk Score
+
+Threat Category
+
+Reasoning
+
+---
+
+## Module 6 — Authenticity Verification Engine
+
+Purpose
+
+Verify legitimate financial communications.
+
+Checks
+
+* official domains
+* SPF
+* DKIM
+* DMARC
+* QR validation
+* Digital signatures
+* Known organization database
+
+Example
+
+SEBI announcement
+
+↓
+
+Official Domain
+
+↓
+
+Verified
+
+↓
+
+Trust Increased
+
+---
+
+# 7. System Workflow
+
+```
+User receives content
+
+        │
+
+Automatic
+
+• SMS
+• Email
+
+OR
+
+Manual
+
+• WhatsApp
+• Social Media
+• Files
+• Images
+• Videos
+• Audio
+
+        │
+
+Content Router
+
+        │
+
+Determine Content Type
+
+        │
+
+Feature Extraction
+
+        │
+
+Appropriate AI Detection Model
+
+        │
+
+Evidence Collection
+
+        │
+
+Evidence Fusion Engine
+
+        │
+
+LLM Explanation Generator
+
+        │
+
+Risk Assessment
+
+        │
+
+Final Trust Report
+```
+
+---
+
+# 8. Trust Score
+
+Every analysis produces one Trust Score.
+
+Example
+
+Trust Score
+
+92/100
+
+Meaning
+
+Highly Authentic
+
+---
+
+Trust Score
+
+45/100
+
+Meaning
+
+Potentially Manipulated
+
+---
+
+Trust Score
+
+15/100
+
+Meaning
+
+High Risk
+
+---
+
+Score Components
+
+AI Detection
+
+30%
+
+Phishing
+
+25%
+
+Source Reputation
+
+15%
+
+Authenticity
+
+20%
+
+Metadata
+
+10%
+
+---
+
+# 9. AI Pipeline
+
+```
+Incoming Content
+
+↓
+
+Content Router
+
+↓
+
+Feature Extraction
+
+↓
+
+Image Model
+
+Video Model
+
+Audio Model
+
+Text Model
+
+↓
+
+Evidence
+
+↓
+
+Evidence Fusion
+
+↓
+
+LLM
+
+↓
+
+Human Explanation
+
+↓
+
+Trust Score
+```
+
+---
+
+# 10. Technology Stack
+
+## Android
+
+Language
+
+Kotlin
+
+UI
+
+Jetpack Compose
+
+Architecture
+
+MVVM
+
+Dependency Injection
+
+Hilt
+
+Database
+
+Room
+
+Networking
+
+Retrofit
+
+Background Jobs
+
+WorkManager
+
+SMS
+
+BroadcastReceiver
+
+File Sharing
+
+Android Share Intent
+
+Authentication
+
+Google OAuth
+
+---
+
+## Backend
+
+Python
+
+FastAPI
+
+REST APIs
+
+Redis
+
+PostgreSQL
+
+Docker
+
+NGINX
+
+---
+
+## Image AI
+
+DeepFakeBench
+
+EfficientNet
+
+Vision Transformer
+
+OpenCLIP
+
+OpenCV
+
+---
+
+## Video AI
+
+DeepFakeBench
+
+FaceForensics++
+
+OpenCV
+
+FFmpeg
+
+Vision Transformer
+
+---
+
+## Audio AI
+
+AASIST
+
+WavLM
+
+RawNet2
+
+Whisper
+
+wav2vec2
+
+---
+
+## Text AI
+
+spaCy
+
+DistilBERT
+
+DeBERTa
+
+Sentence Transformers
+
+Rule-based phishing detection
+
+---
+
+## LLM
+
+Gemma
+
+Qwen
+
+Llama
+
+Purpose
+
+Reasoning only
+
+The LLM never performs the actual detection.
+
+---
+
+# 11. Architecture
+
+```
+                   Android App
+
+                         │
+
+       Automatic Sources      Shared Sources
+
+        SMS                    WhatsApp
+
+        Email                  Telegram
+
+                               Instagram
+
+                               X
+
+                               Browser
+
+                               Files
+
+                         │
+
+                 Content Router
+
+                         │
+
+        ┌────────┬────────┬────────┬────────┐
+
+        │        │        │        │
+
+      Text     Image    Video    Audio
+
+        │        │        │        │
+
+        ▼        ▼        ▼        ▼
+
+ AI Text     Deepfake   Video     Audio
+
+ Detector    Detector   Forensics Detector
+
+        │        │        │        │
+
+        └────────┴────────┴────────┘
+
+                  Evidence
+
+                     │
+
+      Authenticity Verification
+
+                     │
+
+      Phishing Detection Engine
+
+                     │
+
+         Evidence Fusion Layer
+
+                     │
+
+       Explainable LLM Reasoner
+
+                     │
+
+          Trust Score Generator
+
+                     │
+
+           Final User Report
+```
+
+---
+
+# 12. Example Workflow
+
+Example 1
+
+User receives WhatsApp message
+
+"SEBI has approved guaranteed 40% returns."
+
+↓
+
+Share
+
+↓
+
+InvestWall
+
+↓
+
+Text Analysis
+
+↓
+
+URL Analysis
+
+↓
+
+AI Detection
+
+↓
+
+LLM
+
+↓
+
+Result
+
+High Risk
+
+Reasons
+
+* AI-generated persuasive writing
+* Fake investment claim
+* Suspicious domain
+* High phishing probability
+
+---
+
+Example 2
+
+User receives CEO video.
+
+↓
+
+Share
+
+↓
+
+InvestWall
+
+↓
+
+Frame Extraction
+
+↓
+
+Deepfake Detection
+
+↓
+
+Temporal Analysis
+
+↓
+
+Evidence Fusion
+
+↓
+
+LLM
+
+↓
+
+Result
+
+Likely Deepfake
+
+Confidence
+
+94%
+
+Reasons
+
+* Face warping detected
+* Lip-sync inconsistencies
+* Temporal artifacts across frames
+
+---
+
+Example 3
+
+User receives voice note.
+
+↓
+
+Share
+
+↓
+
+InvestWall
+
+↓
+
+Audio Deepfake Detection
+
+↓
+
+Speech Recognition
+
+↓
+
+Transcript Analysis
+
+↓
+
+Result
+
+Voice likely AI-generated
+
+Scam language detected
+
+High urgency phrases
+
+Trust Score
+
+22%
+
+---
+
+# 13. Future Scope
+
+* Live browser extension
+* Call recording analysis (with user consent)
+* SEBI verified communication registry integration
+* Real-time URL reputation service
+* Offline on-device inference
+* Federated learning for privacy-preserving model improvements
+* Enterprise dashboard for brokers
+* Cross-platform support (iOS and Web)
+
+---
+
+# 14. Key Differentiators
+
+* Multimodal detection (text, image, video, audio)
+* Explainable AI with evidence-backed reasoning
+* Privacy-first design using Android Share Intent and local preprocessing
+* Automatic protection for SMS and email
+* Authenticity verification for financial communications
+* Unified Trust Score across all supported content types
+* Modular architecture allowing individual AI models to evolve independently
+
+---
+
+# 15. Success Metrics
+
+Technical
+
+* High precision and recall on benchmark datasets
+* Low false-positive rate for genuine financial communications
+* Average end-to-end analysis latency under a few seconds for common inputs
+* Reliable operation across supported Android devices
+
+User
+
+* Reduced likelihood of interacting with phishing content
+* Faster identification of manipulated media
+* Increased confidence in verifying financial communications
+* Clear, explainable results that non-technical users can understand

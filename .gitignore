@@ -1,0 +1,26 @@
+# Python
+backend/.venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+*.db
+backend/investwall.db
+
+# Env / secrets
+.env
+backend/.env
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Android (Phase 2)
+*.iml
+.gradle/
+local.properties
+android/build/
+android/app/build/
+android/.cxx/

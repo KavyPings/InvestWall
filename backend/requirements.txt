@@ -1,0 +1,30 @@
+# InvestWall backend — base requirements (service boots & returns real results with only these)
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.10.4
+pydantic-settings==2.7.1
+python-multipart==0.0.20
+SQLAlchemy==2.0.36
+python-dotenv==1.0.1
+
+# Text NLP
+spacy==3.8.3
+tldextract==5.1.3
+
+# Image / video / audio forensics
+numpy==2.2.1
+Pillow==11.1.0
+piexif==1.1.3
+opencv-python-headless==4.11.0.86
+librosa==0.10.2.post1
+
+# Authenticity
+dnspython==2.7.0
+
+# Documents
+pypdf==5.1.0
+python-docx==1.1.2
+
+# Testing
+pytest==8.3.4
+httpx==0.28.1

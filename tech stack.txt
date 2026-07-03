@@ -1,0 +1,1005 @@
+# InvestWall Technical Stack Document
+
+## AI-Driven Detection of Synthetic Media & Phishing Attacks for Retail Investors
+
+Version: 1.0
+
+Platform: Android
+
+---
+
+# 1. Technology Philosophy
+
+InvestWall is designed as a **modular AI pipeline** rather than a single AI model.
+
+Each type of content (text, image, video, audio, document) is processed by a specialized detection engine that performs best for that modality. Their outputs are combined into a unified Evidence Fusion Layer, which produces a Trust Score and an explainable report.
+
+This architecture provides:
+
+* Higher detection accuracy
+* Faster processing
+* Easier maintenance
+* Independent model upgrades
+* Explainable decision making
+
+---
+
+# 2. High-Level Technology Architecture
+
+```
+                    Android Application
+
+                           │
+
+                  Content Collection Layer
+
+                           │
+
+                    Content Router Engine
+
+                           │
+
+        ┌────────┬────────┬────────┬────────┐
+
+        │        │        │        │
+
+      Text     Image    Video    Audio
+
+        │        │        │        │
+
+        ▼        ▼        ▼        ▼
+
+ NLP AI   Deepfake AI Video AI Audio AI
+
+        │        │        │        │
+
+        └────────┴────────┴────────┘
+
+                 Evidence Fusion Layer
+
+                         │
+
+           Authenticity Verification Engine
+
+                         │
+
+             LLM Explanation Generator
+
+                         │
+
+                Trust Score Generator
+
+                         │
+
+                   Android Dashboard
+```
+
+---
+
+# 3. Android Application Stack
+
+## Kotlin
+
+Purpose
+
+Primary Android development language.
+
+Why
+
+* Official Android language
+* High performance
+* Strong coroutine support
+* Excellent AI/backend integration
+
+Responsibilities
+
+* UI
+* File handling
+* SMS monitoring
+* Share Intent
+* Local storage
+* API communication
+
+---
+
+## Jetpack Compose
+
+Purpose
+
+Modern UI Framework.
+
+Responsibilities
+
+* Dashboard
+* Analysis reports
+* Trust score visualization
+* Media preview
+* History
+* Settings
+
+Reason
+
+Reactive UI with significantly less boilerplate than XML layouts.
+
+---
+
+## MVVM Architecture
+
+Purpose
+
+Separate business logic from UI.
+
+Layers
+
+View
+
+↓
+
+ViewModel
+
+↓
+
+Repository
+
+↓
+
+Backend APIs
+
+Benefits
+
+* Cleaner architecture
+* Easier testing
+* Better scalability
+
+---
+
+## Hilt
+
+Purpose
+
+Dependency Injection.
+
+Used for
+
+* API clients
+* Database
+* ViewModels
+* Repositories
+
+Reason
+
+Avoids manual object creation and simplifies lifecycle management.
+
+---
+
+## Retrofit
+
+Purpose
+
+HTTP networking.
+
+Responsibilities
+
+* Upload content
+* Fetch AI results
+* Authentication
+* Model inference requests
+
+---
+
+## Room Database
+
+Purpose
+
+Offline local database.
+
+Stores
+
+* Scan history
+* Cached reports
+* User preferences
+* Recent analyses
+
+Reason
+
+Allows users to revisit previous analyses without another network call.
+
+---
+
+## WorkManager
+
+Purpose
+
+Background task scheduling.
+
+Uses
+
+* Email synchronization
+* Deferred uploads
+* Periodic cleanup
+* Notification refresh
+
+---
+
+## Android Share Intent
+
+Purpose
+
+Primary content ingestion method.
+
+Supported Apps
+
+* WhatsApp
+* Telegram
+* Instagram
+* Facebook
+* X
+* LinkedIn
+* Browser
+* Gallery
+* File Manager
+
+Workflow
+
+User selects content
+
+↓
+
+Share
+
+↓
+
+InvestWall
+
+↓
+
+Analysis begins
+
+No accessibility permissions are required.
+
+---
+
+## BroadcastReceiver
+
+Purpose
+
+Automatic SMS monitoring.
+
+Workflow
+
+SMS Received
+
+↓
+
+BroadcastReceiver
+
+↓
+
+Extract Text
+
+↓
+
+Backend Analysis
+
+↓
+
+Alert User
+
+---
+
+## Google OAuth
+
+Purpose
+
+Secure Gmail access.
+
+Responsibilities
+
+* User authentication
+* Gmail API authorization
+* Secure token management
+
+---
+
+# 4. Backend Stack
+
+## Python
+
+Purpose
+
+Primary AI backend.
+
+Reason
+
+The majority of state-of-the-art AI, NLP, and computer vision libraries are Python-based.
+
+Responsibilities
+
+* AI inference
+* Data preprocessing
+* Model orchestration
+* Feature extraction
+
+---
+
+## FastAPI
+
+Purpose
+
+REST API framework.
+
+Responsibilities
+
+* Receive uploads
+* Route requests
+* Run AI pipelines
+* Return reports
+
+Why FastAPI
+
+* Very fast
+* Async support
+* Automatic OpenAPI documentation
+* Excellent integration with ML models
+
+---
+
+## PostgreSQL
+
+Purpose
+
+Persistent storage.
+
+Stores
+
+* User profiles
+* Scan history
+* Trust reports
+* Authentication metadata
+* Model logs
+
+---
+
+## Redis
+
+Purpose
+
+In-memory processing.
+
+Uses
+
+* Request queue
+* Temporary cache
+* AI job status
+* Rate limiting
+
+---
+
+## Docker
+
+Purpose
+
+Containerization.
+
+Benefits
+
+* Easy deployment
+* Reproducible environments
+* Isolated AI services
+
+---
+
+## Nginx
+
+Purpose
+
+Reverse proxy.
+
+Responsibilities
+
+* SSL termination
+* Request routing
+* Load balancing
+* API gateway
+
+---
+
+# 5. Text Analysis Stack
+
+Purpose
+
+Detect AI-generated financial scams and phishing content.
+
+---
+
+## spaCy
+
+Purpose
+
+Natural Language Processing.
+
+Responsibilities
+
+* Tokenization
+* Named Entity Recognition
+* Dependency Parsing
+* POS Tagging
+
+Used For
+
+* Financial entity extraction
+* Organization detection
+* Person detection
+* URL extraction
+
+---
+
+## DeBERTa
+
+Purpose
+
+Contextual language understanding.
+
+Responsibilities
+
+* Scam classification
+* Financial misinformation detection
+* Semantic analysis
+
+---
+
+## DistilBERT
+
+Purpose
+
+Lightweight transformer.
+
+Responsibilities
+
+* Fast text classification
+* Phishing detection
+* Scam detection
+
+---
+
+## Sentence Transformers
+
+Purpose
+
+Semantic similarity.
+
+Uses
+
+* Duplicate scam detection
+* Similarity against known fraud datasets
+* Financial content matching
+
+---
+
+## Rule-Based Engine
+
+Purpose
+
+Traditional phishing detection.
+
+Checks
+
+* Urgent language
+* Suspicious domains
+* URL shorteners
+* Fake login pages
+* High-risk keywords
+* Excessive punctuation
+
+Rule-based heuristics complement ML models to reduce false positives.
+
+---
+
+# 6. Image Analysis Stack
+
+Purpose
+
+Detect AI-generated images.
+
+---
+
+## DeepFakeBench
+
+Purpose
+
+Primary deepfake detection benchmark.
+
+Responsibilities
+
+* Face manipulation detection
+* AI-generated face detection
+* Model evaluation
+
+Reason
+
+Supports multiple state-of-the-art image forgery models through a common framework.
+
+---
+
+## EfficientNet
+
+Purpose
+
+CNN feature extraction.
+
+Uses
+
+* Compression artifacts
+* Image texture
+* GAN fingerprints
+
+---
+
+## Vision Transformer (ViT)
+
+Purpose
+
+Global image analysis.
+
+Detects
+
+* Diffusion artifacts
+* Structural inconsistencies
+* AI image signatures
+
+---
+
+## OpenCLIP
+
+Purpose
+
+Vision-language embeddings.
+
+Uses
+
+* Semantic consistency
+* Context verification
+* Image understanding
+
+---
+
+## OpenCV
+
+Purpose
+
+Image preprocessing.
+
+Uses
+
+* Cropping
+* Face detection
+* Color conversion
+* Noise analysis
+* Blur detection
+
+---
+
+# 7. Video Analysis Stack
+
+Purpose
+
+Detect AI-generated videos.
+
+---
+
+## FaceForensics++
+
+Purpose
+
+Benchmark dataset and evaluation framework.
+
+Used for
+
+* Face swaps
+* Neural rendering
+* Face manipulation
+
+---
+
+## DeepFakeBench
+
+Purpose
+
+Video deepfake detection.
+
+Detects
+
+* Face swaps
+* Lip sync manipulation
+* Temporal artifacts
+
+---
+
+## OpenCV
+
+Purpose
+
+Frame extraction.
+
+Responsibilities
+
+* Video decoding
+* Face tracking
+* Motion estimation
+
+---
+
+## FFmpeg
+
+Purpose
+
+Media processing.
+
+Uses
+
+* Video decoding
+* Audio extraction
+* Frame sampling
+* Compression analysis
+
+---
+
+## Vision Transformer
+
+Purpose
+
+Frame-level inference.
+
+Detects
+
+* Facial inconsistencies
+* Temporal anomalies
+* Structural artifacts
+
+---
+
+# 8. Audio Analysis Stack
+
+Purpose
+
+Detect AI-generated voices.
+
+---
+
+## AASIST
+
+Purpose
+
+Primary deepfake audio detector.
+
+Detects
+
+* Voice cloning
+* Replay attacks
+* Neural speech synthesis
+
+Reason
+
+One of the strongest publicly available spoof detection models.
+
+---
+
+## WavLM
+
+Purpose
+
+Speech representation learning.
+
+Used for
+
+* Speaker embeddings
+* Voice authenticity
+* Acoustic feature extraction
+
+---
+
+## RawNet2
+
+Purpose
+
+Raw waveform classification.
+
+Detects
+
+* Fake speech
+* Audio spoofing
+* Voice manipulation
+
+---
+
+## Whisper
+
+Purpose
+
+Speech-to-text transcription.
+
+Responsibilities
+
+* Audio transcription
+* Multilingual support
+* Transcript generation for downstream NLP
+
+---
+
+## wav2vec 2.0
+
+Purpose
+
+Acoustic embeddings.
+
+Uses
+
+* Speech feature extraction
+* Voice analysis
+* Audio representation
+
+---
+
+# 9. Authenticity Verification Stack
+
+Purpose
+
+Verify legitimate financial communications.
+
+---
+
+## SPF Verification
+
+Checks
+
+Whether the sender is authorized to send email for the claimed domain.
+
+---
+
+## DKIM Verification
+
+Checks
+
+Whether the email content has been modified after sending.
+
+---
+
+## DMARC Validation
+
+Checks
+
+Whether sender identity aligns with the domain's authentication policy.
+
+---
+
+## Domain Reputation
+
+Uses
+
+* Official financial domains
+* Trusted organization lists
+* Reputation databases
+
+---
+
+## QR Verification
+
+Reads embedded QR codes in documents and validates whether they resolve to trusted domains.
+
+---
+
+## Metadata Validation
+
+Checks
+
+* Creation timestamps
+* Software signatures
+* Editing history
+* File anomalies
+
+---
+
+# 10. LLM Layer
+
+Purpose
+
+Explain evidence—not perform detection.
+
+The LLM receives structured outputs from every detection engine.
+
+Example input
+
+```
+Image Score: 92
+
+Video Score: 18
+
+Audio Score: 7
+
+Phishing Score: 85
+
+Metadata Score: 40
+
+Sender Reputation: Low
+```
+
+The LLM converts this into a user-friendly explanation.
+
+Example output
+
+> "This message is considered high risk because the attached image shows signs of AI generation, the sender domain has low reputation, and the text contains common phishing patterns encouraging immediate financial action."
+
+Recommended models
+
+* Gemma 3
+* Qwen 3
+* Llama 3.2 Instruct
+
+Small instruction-tuned models are sufficient because reasoning is based on structured evidence rather than raw content.
+
+---
+
+# 11. Evidence Fusion Layer
+
+Purpose
+
+Combine outputs from all detection engines.
+
+Inputs
+
+* Text score
+* Image score
+* Video score
+* Audio score
+* Metadata score
+* Authenticity score
+* Domain reputation
+* Phishing score
+
+Processing
+
+Weighted aggregation followed by calibrated confidence estimation.
+
+Outputs
+
+* Trust Score
+* Confidence
+* Primary threat category
+* Evidence summary
+
+This layer acts as the decision engine before the explanation model.
+
+---
+
+# 12. Security Stack
+
+Authentication
+
+Google OAuth
+
+API Security
+
+JWT Tokens
+
+Transport Security
+
+HTTPS (TLS)
+
+Encryption
+
+AES-256 for local sensitive data
+
+Password Storage
+
+Argon2 or bcrypt hashing (if credentials beyond OAuth are ever stored)
+
+Rate Limiting
+
+Redis
+
+Backend Isolation
+
+Docker containers
+
+---
+
+# 13. Deployment Stack
+
+Frontend
+
+Android APK / Play Store
+
+Backend
+
+FastAPI running in Docker
+
+Reverse Proxy
+
+Nginx
+
+Database
+
+PostgreSQL
+
+Cache
+
+Redis
+
+Monitoring
+
+Prometheus + Grafana (optional)
+
+Logging
+
+Structured logs with Python logging and FastAPI middleware
+
+---
+
+# 14. End-to-End Integration Workflow
+
+```
+User receives financial content
+
+↓
+
+Android collects content
+(SMS or Share Intent)
+
+↓
+
+Content Router identifies modality
+
+↓
+
+Relevant AI engine processes content
+
+↓
+
+Feature extraction
+
+↓
+
+Specialized model inference
+
+↓
+
+Evidence generated
+
+↓
+
+Evidence Fusion Layer combines results
+
+↓
+
+Authenticity Verification adds source confidence
+
+↓
+
+LLM generates natural-language explanation
+
+↓
+
+Trust Score calculated
+
+↓
+
+Report stored in Room Database
+
+↓
+
+User receives actionable security report
+```
+
+---
+
+# 15. Why This Stack
+
+Every technology is chosen because it is mature, actively maintained, and purpose-built for its role:
+
+* Kotlin and Jetpack Compose provide a modern native Android experience.
+* FastAPI offers high-performance asynchronous APIs for AI inference.
+* Specialized multimodal models outperform a single general-purpose detector.
+* The Evidence Fusion Layer produces more reliable decisions by combining independent signals.
+* The LLM focuses on explainability rather than classification, improving transparency and user trust.
+* A modular architecture allows any detection engine to be upgraded independently as new research emerges without redesigning the entire system.
+

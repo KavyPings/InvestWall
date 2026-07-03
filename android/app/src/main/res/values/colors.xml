@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Plain dark palette (kept in sync with ui/theme/Color.kt). -->
+    <color name="background">#0F0F10</color>
+    <color name="surface">#17171A</color>
+    <color name="accent">#4F9CF9</color>
+    <color name="black">#000000</color>
+    <color name="white">#F4F4F5</color>
+</resources>

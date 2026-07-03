@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <!-- Exclude the local report cache from cloud backup. -->
+    <exclude domain="database" path="investwall.db" />
+</full-backup-content>

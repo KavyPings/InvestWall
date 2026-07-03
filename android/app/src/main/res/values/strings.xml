@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">InvestWall</string>
+    <string name="analyze_with_investwall">Analyze with InvestWall</string>
+    <string name="tagline">Your AI trust layer against financial fraud</string>
+</resources>

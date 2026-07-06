@@ -41,8 +41,17 @@ UI (Compose screens)
 
 ## Build & run
 
-Requires **JDK 17–21** (the bundled Android Studio JBR 21 works) and the Android
-SDK. `local.properties` already points at `C:\Android\sdk`; edit if yours differs.
+Requires **JDK 17–21** and the Android SDK. `local.properties` already points at
+`C:\Android\sdk`; edit if yours differs.
+
+> **JDK note (important):** AGP 8.7 / Gradle 8.11 do **not** run on JDK 24/25. If
+> your system default `java` is JDK 25 you'll see a cryptic
+> `* What went wrong: 25.0.2` error. This project fixes that by pinning the Gradle
+> daemon to the JDK 21 bundled with Android Studio via `org.gradle.java.home` in
+> `gradle.properties` — so **both the command line and Android Studio build with
+> the same supported JDK, out of the box**. If your Android Studio is installed
+> somewhere other than `C:/Program Files/Android/Android Studio`, update that one
+> line. On CI, delete it and supply a JDK 17–21 through `JAVA_HOME`.
 
 ```bash
 cd android

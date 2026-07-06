@@ -101,6 +101,7 @@ pip install -r requirements-optional.txt
 | Flag | Effect | Needs |
 |------|--------|-------|
 | `ENABLE_TRANSFORMERS=1` | Neural text spam/scam classifier (model from `TRANSFORMER_MODEL`) | transformers + torch |
+| `ENABLE_IMAGE_MODEL=1` | Learned deepfake/AI-image detector (`IMAGE_MODEL`, default `dima806/deepfake_vs_real_image_detection`) | transformers + torch |
 | `ENABLE_WHISPER=1` | Audio speech-to-text → transcript scam analysis (`WHISPER_MODEL`) | faster-whisper |
 | `ENABLE_QR=1` | QR decoding in images/PDFs | pyzbar + zbar |
 | `ENABLE_DNS=1` (default) | Live SPF/DMARC lookups | network |

@@ -20,6 +20,37 @@ from app.engines.base import Engine, Payload
 
 logger = logging.getLogger("investwall.engine.image")
 
+# Lazily-initialised deepfake/AI image classifier (optional, flag-gated).
+_IMAGE_MODEL = None
+_IMAGE_MODEL_TRIED = False
+
+_FAKE_LABEL_TOKENS = ("fake", "ai", "artificial", "synthetic", "generated", "spoof", "deepfake")
+_REAL_LABEL_TOKENS = ("real", "human", "authentic", "genuine", "natural")
+
+
+def _get_image_model():
+    global _IMAGE_MODEL, _IMAGE_MODEL_TRIED
+    if _IMAGE_MODEL is not None or _IMAGE_MODEL_TRIED:
+        return _IMAGE_MODEL
+    _IMAGE_MODEL_TRIED = True
+    try:
+        from transformers import pipeline
+
+        from app.config import get_settings
+
+        model = get_settings().image_model
+        _IMAGE_MODEL = pipeline("image-classification", model=model, device=-1)
+        logger.info("Loaded image classifier: %s", model)
+    except Exception as exc:  # pragma: no cover
+        logger.warning("Image model unavailable: %s", exc)
+        _IMAGE_MODEL = None
+    return _IMAGE_MODEL
+
+
+def image_model_loaded() -> bool:
+    return _IMAGE_MODEL is not None
+
+
 # AI-generation software / watermark fingerprints found in metadata or bytes.
 _AI_SOFTWARE_TOKENS = [
     b"stable diffusion", b"stablediffusion", b"midjourney", b"dall-e", b"dalle",
@@ -62,6 +93,10 @@ class ImageEngine(Engine):
         self._noise_fft_checks(bundle, arr)
         self._ela_check(bundle, rgb)
         self._face_checks(bundle, arr)
+
+        # --- Learned deepfake/AI-image model (optional, flag-gated) ---
+        if get_settings().enable_image_model:
+            self._ai_model_check(bundle, rgb)
         return bundle
 
     # ---- metadata ----
@@ -74,6 +109,55 @@ class ImageEngine(Engine):
                            f"Image embeds an AI-generation marker ('{name}').",
                            Component.AI, weight=1.4, token=name)
                 return
+
+    def _ai_model_check(self, bundle: EvidenceBundle, rgb) -> None:
+        """Run the learned deepfake/AI-image classifier and emit an AI signal.
+
+        Works with any HF image-classification model: we read the probability of
+        the 'fake/ai/synthetic' class (or 1 - 'real' when only a real class is
+        present). This signal carries a high weight so it dominates the classical
+        heuristics when the model is confident.
+        """
+        clf = _get_image_model()
+        if clf is None:
+            return
+        try:
+            preds = clf(rgb)
+            if not preds:
+                return
+            fake_score = None
+            real_score = None
+            for item in preds:
+                label = str(item.get("label", "")).lower()
+                score = float(item.get("score", 0.0))
+                if any(t in label for t in _FAKE_LABEL_TOKENS):
+                    fake_score = max(fake_score or 0.0, score)
+                elif any(t in label for t in _REAL_LABEL_TOKENS):
+                    real_score = max(real_score or 0.0, score)
+            if fake_score is None and real_score is not None:
+                fake_score = 1.0 - real_score
+            if fake_score is None:
+                # Unknown label scheme — use the top prediction as-is.
+                top = max(preds, key=lambda p: p.get("score", 0.0))
+                fake_score = float(top.get("score", 0.0))
+                label_note = f" (top class '{top.get('label')}')"
+            else:
+                label_note = ""
+
+            model = get_settings().image_model
+            if fake_score >= 0.5:
+                reason = (f"Deepfake detector flags this image as likely "
+                          f"manipulated/AI-generated ({int(fake_score * 100)}% "
+                          f"confidence){label_note}.")
+            else:
+                reason = (f"Deepfake detector considers this image likely "
+                          f"authentic ({int((1 - fake_score) * 100)}% real).")
+            bundle.add(
+                "deepfake_model", fake_score, reason,
+                Component.AI, weight=2.0, model=model, fake_prob=round(fake_score, 4),
+            )
+        except Exception as exc:  # pragma: no cover
+            logger.warning("Image model inference failed: %s", exc)
 
     def _metadata_checks(self, bundle: EvidenceBundle, img, data: bytes) -> None:
         exif = None

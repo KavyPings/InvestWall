@@ -22,19 +22,21 @@ def health() -> HealthResponse:
         features={
             "transformers": settings.enable_transformers,
             "whisper": settings.enable_whisper,
+            "image_model": settings.enable_image_model,
             "qr": settings.enable_qr,
             "dns": settings.enable_dns,
             "store_raw_content": settings.store_raw_content,
-            "transformer_loaded": _transformer_loaded(),
+            "transformer_loaded": _loaded("app.engines.text_engine", "transformer_loaded"),
+            "image_model_loaded": _loaded("app.engines.image_engine", "image_model_loaded"),
         },
         database=db,
     )
 
 
-def _transformer_loaded() -> bool:
+def _loaded(module: str, fn: str) -> bool:
     try:
-        from app.engines.text_engine import transformer_loaded
+        import importlib
 
-        return transformer_loaded()
+        return bool(getattr(importlib.import_module(module), fn)())
     except Exception:  # pragma: no cover
         return False

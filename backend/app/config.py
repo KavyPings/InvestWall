@@ -30,12 +30,15 @@ class Settings(BaseSettings):
     # Optional model / feature flags
     enable_transformers: bool = False
     enable_whisper: bool = False
+    enable_image_model: bool = False
     enable_qr: bool = False
     enable_dns: bool = True
 
     # Model choices (used only when the matching flag is on)
     transformer_model: str = "mrm8488/bert-tiny-finetuned-sms-spam-detection"
     whisper_model: str = "tiny"
+    # Deepfake/manipulated-image detector (image-classification pipeline).
+    image_model: str = "dima806/deepfake_vs_real_image_detection"
 
     # Privacy — when False, raw input previews and sender are NOT persisted;
     # only scores/evidence reasons/metadata are stored.

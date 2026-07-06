@@ -2,8 +2,12 @@
 # Enable with the matching env flags in .env (see .env.example).
 
 # ENABLE_TRANSFORMERS=1  -> real transformer text classifiers (DistilBERT / DeBERTa)
+# ENABLE_IMAGE_MODEL=1   -> deepfake/AI image classifier (uses transformers + torch)
+# For CPU-only torch install with:
+#   pip install torch --index-url https://download.pytorch.org/whl/cpu
 transformers==4.48.0
 torch==2.5.1
+timm==1.0.12
 sentence-transformers==3.3.1
 
 # ENABLE_WHISPER=1  -> audio speech-to-text for transcript scam analysis

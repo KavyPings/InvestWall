@@ -31,11 +31,13 @@ class SmsAnalysisWorker @AssistedInject constructor(
         val sender = inputData.getString(KEY_SENDER)
 
         return try {
-            val report = repository.analyzeText(text = body, source = "sms", sender = sender)
+            // Privacy-first: SMS is screened on-device by default; the content
+            // never leaves the phone. Users can escalate a flagged result to the
+            // server ("Deep AI check") from the report.
+            val report = repository.analyzeTextLocally(text = body, source = "sms", sender = sender)
             notifier.notifyResult(report, sender)
             Result.success()
         } catch (e: Exception) {
-            // Transient network/backend issues — let WorkManager retry.
             Result.retry()
         }
     }

@@ -28,7 +28,8 @@ class ShareViewModel @Inject constructor(
     fun analyzeText(text: String, source: String?) {
         if (started) return
         started = true
-        analyze { repository.analyzeText(text, source ?: "shared") }
+        // Shared text is screened on-device (private); files go to the server.
+        analyze { repository.analyzeTextLocally(text, source ?: "shared") }
     }
 
     fun analyzeUri(uri: Uri, source: String?) {

@@ -24,6 +24,17 @@ def health() -> HealthResponse:
             "whisper": settings.enable_whisper,
             "qr": settings.enable_qr,
             "dns": settings.enable_dns,
+            "store_raw_content": settings.store_raw_content,
+            "transformer_loaded": _transformer_loaded(),
         },
         database=db,
     )
+
+
+def _transformer_loaded() -> bool:
+    try:
+        from app.engines.text_engine import transformer_loaded
+
+        return transformer_loaded()
+    except Exception:  # pragma: no cover
+        return False

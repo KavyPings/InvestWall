@@ -75,7 +75,8 @@ fun AnalyzeScreen(
         AppTopBar(title = "Analyze", onBack = onBack)
         Column(Modifier.padding(16.dp)) {
             Text(
-                "Paste an SMS, email, WhatsApp forward, or any suspicious financial message.",
+                "Paste an SMS, email, WhatsApp forward, or any suspicious financial message. " +
+                    "Text is checked privately on your device — nothing is uploaded.",
                 color = TextSecondary,
                 style = MaterialTheme.typography.bodyMedium,
             )

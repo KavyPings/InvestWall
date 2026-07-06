@@ -71,3 +71,25 @@ fun ReportEntity.toDomain(): TrustReport {
 
 /** Backend DTO -> domain (direct, for freshly returned analyses). */
 fun TrustReportDto.toDomain(): TrustReport = toEntity().toDomain()
+
+/** Domain -> Room entity (for caching on-device analyses). */
+fun TrustReport.toEntity(): ReportEntity = ReportEntity(
+    id = id,
+    createdAt = createdAt,
+    modality = modality,
+    source = source,
+    sender = sender,
+    filename = filename,
+    inputPreview = inputPreview,
+    trustScore = trustScore,
+    band = band.key,
+    bandLabel = band.label,
+    confidence = confidence,
+    primaryThreat = primaryThreat,
+    componentScoresJson = json.encodeToString(componentScores),
+    explanation = explanation,
+    llmProvider = llmProvider,
+    evidenceJson = json.encodeToString(
+        evidence.map { EvidenceItemDto(it.signal, it.component, it.score, it.reason) },
+    ),
+)

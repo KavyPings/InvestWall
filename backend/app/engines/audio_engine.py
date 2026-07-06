@@ -31,8 +31,11 @@ def _get_whisper():
     try:
         from faster_whisper import WhisperModel
 
-        _WHISPER = WhisperModel("tiny", device="cpu", compute_type="int8")
-        logger.info("Loaded faster-whisper tiny model")
+        from app.config import get_settings
+
+        model = get_settings().whisper_model
+        _WHISPER = WhisperModel(model, device="cpu", compute_type="int8")
+        logger.info("Loaded faster-whisper model: %s", model)
     except Exception as exc:  # pragma: no cover
         logger.warning("Whisper unavailable: %s", exc)
         _WHISPER = None

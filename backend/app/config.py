@@ -33,6 +33,14 @@ class Settings(BaseSettings):
     enable_qr: bool = False
     enable_dns: bool = True
 
+    # Model choices (used only when the matching flag is on)
+    transformer_model: str = "mrm8488/bert-tiny-finetuned-sms-spam-detection"
+    whisper_model: str = "tiny"
+
+    # Privacy — when False, raw input previews and sender are NOT persisted;
+    # only scores/evidence reasons/metadata are stored.
+    store_raw_content: bool = True
+
     # LLM
     llm_provider: str = "template"  # template | ollama | hosted
     ollama_base_url: str = "http://localhost:11434"

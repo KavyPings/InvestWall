@@ -9,9 +9,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.CloudUpload
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
@@ -32,6 +35,7 @@ import com.investwall.app.ui.UiState
 import com.investwall.app.ui.components.AppTopBar
 import com.investwall.app.ui.components.ComponentBar
 import com.investwall.app.ui.components.EvidenceRow
+import com.investwall.app.ui.components.SecondaryButton
 import com.investwall.app.ui.components.SectionCard
 import com.investwall.app.ui.components.StatusPill
 import com.investwall.app.ui.components.componentLabel
@@ -39,6 +43,8 @@ import com.investwall.app.ui.components.tagline
 import com.investwall.app.ui.components.visual
 import com.investwall.app.ui.theme.Accent
 import com.investwall.app.ui.theme.Border
+import com.investwall.app.ui.theme.RiskRed
+import com.investwall.app.ui.theme.SafeGreen
 import com.investwall.app.ui.theme.TextMuted
 import com.investwall.app.ui.theme.TextPrimary
 import com.investwall.app.ui.theme.TextSecondary
@@ -50,6 +56,8 @@ fun ReportScreen(
     viewModel: ReportViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val deepChecking by viewModel.deepChecking.collectAsStateWithLifecycle()
+    val deepError by viewModel.deepError.collectAsStateWithLifecycle()
 
     Column(Modifier.fillMaxSize()) {
         AppTopBar(title = "Trust Report", onBack = onBack)
@@ -60,15 +68,26 @@ fun ReportScreen(
             is UiState.Error -> Box(Modifier.fillMaxSize(), Alignment.Center) {
                 Text(s.message, color = TextSecondary)
             }
-            is UiState.Success -> ReportContent(s.data)
+            is UiState.Success -> ReportContent(
+                report = s.data,
+                deepChecking = deepChecking,
+                deepError = deepError,
+                onDeepCheck = viewModel::deepCheck,
+            )
             else -> Unit
         }
     }
 }
 
 @Composable
-private fun ReportContent(report: TrustReport) {
+private fun ReportContent(
+    report: TrustReport,
+    deepChecking: Boolean,
+    deepError: String?,
+    onDeepCheck: () -> Unit,
+) {
     val visual = report.band.visual()
+    val isLocal = report.llmProvider == "on-device"
     LazyColumn(
         Modifier.fillMaxWidth(),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
@@ -94,6 +113,49 @@ private fun ReportContent(report: TrustReport) {
                         color = TextMuted,
                         style = MaterialTheme.typography.labelSmall,
                     )
+                    Spacer(Modifier.height(12.dp))
+                    StatusPill(
+                        text = if (isLocal) "Analyzed on-device · private" else "Server analysis",
+                        color = if (isLocal) SafeGreen else Accent,
+                    )
+                }
+            }
+        }
+
+        // Deep AI check — escalate an on-device result to the server's full ML.
+        if (isLocal) {
+            item {
+                SectionCard {
+                    Text("Want a deeper check?", color = TextPrimary, style = MaterialTheme.typography.titleMedium)
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "This ran privately on your device using rule-based detection. " +
+                            "A deep AI check sends the text to your InvestWall backend for " +
+                            "full model analysis (it leaves the device).",
+                        color = TextSecondary,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    if (deepChecking) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            CircularProgressIndicator(color = Accent, strokeWidth = 2.dp,
+                                modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(12.dp))
+                            Text("Running deep AI analysis…", color = TextSecondary,
+                                style = MaterialTheme.typography.bodyMedium)
+                        }
+                    } else {
+                        SecondaryButton(
+                            text = "Run deep AI check",
+                            icon = Icons.Outlined.CloudUpload,
+                            onClick = onDeepCheck,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                    if (deepError != null) {
+                        Spacer(Modifier.height(10.dp))
+                        Text(deepError, color = RiskRed, style = MaterialTheme.typography.bodyMedium)
+                    }
                 }
             }
         }

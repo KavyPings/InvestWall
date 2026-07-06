@@ -22,9 +22,10 @@ class AnalyzeViewModel @Inject constructor(
     private val _state = MutableStateFlow<UiState<TrustReport>>(UiState.Idle)
     val state: StateFlow<UiState<TrustReport>> = _state.asStateFlow()
 
+    /** Text is analysed on-device by default (private). */
     fun analyze(text: String, source: String? = "manual") {
         if (text.isBlank()) return
-        launchAnalyze { repository.analyzeText(text.trim(), source) }
+        launchAnalyze { repository.analyzeTextLocally(text.trim(), source) }
     }
 
     fun analyzeFile(uri: Uri) {

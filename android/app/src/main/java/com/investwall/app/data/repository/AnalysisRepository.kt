@@ -9,6 +9,7 @@ import com.investwall.app.data.remote.dto.AnalyzeTextRequest
 import com.investwall.app.data.toDomain
 import com.investwall.app.data.toEntity
 import com.investwall.app.domain.model.TrustReport
+import com.investwall.app.local.LocalAnalyzer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -36,6 +37,18 @@ class AnalysisRepository @Inject constructor(
     val highRiskCount: Flow<Int> = dao.observeHighRiskCount()
     val totalCount: Flow<Int> = dao.observeTotalCount()
 
+    /**
+     * On-device analysis (privacy-first default for text/SMS): rules run locally,
+     * nothing leaves the phone. Cached like any other report.
+     */
+    suspend fun analyzeTextLocally(text: String, source: String?, sender: String? = null): TrustReport =
+        withContext(Dispatchers.Default) {
+            val report = LocalAnalyzer.analyze(text, source, sender)
+            dao.upsert(report.toEntity())
+            report
+        }
+
+    /** Server-side analysis (full engines + optional ML). Content leaves the device. */
     suspend fun analyzeText(text: String, source: String?, sender: String? = null): TrustReport =
         withContext(Dispatchers.IO) {
             val dto = api.analyzeText(AnalyzeTextRequest(text = text, source = source, sender = sender))
@@ -43,6 +56,18 @@ class AnalysisRepository @Inject constructor(
             dao.upsert(entity)
             entity.toDomain()
         }
+
+    /**
+     * Escalate a locally-produced report to the server for a deep ML check.
+     * Re-sends the original text, then removes the superseded local entry.
+     */
+    suspend fun deepCheck(local: TrustReport): TrustReport = withContext(Dispatchers.IO) {
+        val text = local.inputPreview.orEmpty()
+        require(text.isNotBlank()) { "No text available to re-check" }
+        val server = analyzeText(text, local.source, local.sender)
+        if (local.id != server.id) dao.deleteById(local.id)
+        server
+    }
 
     suspend fun analyzeFile(uri: Uri, source: String?, sender: String? = null): TrustReport =
         withContext(Dispatchers.IO) {

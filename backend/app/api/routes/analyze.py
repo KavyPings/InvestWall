@@ -15,14 +15,16 @@ router = APIRouter(tags=["analysis"])
 
 def _persist_and_build(report: dict, db: Session) -> TrustReport:
     """Persist a pipeline result and return the API model."""
+    # Privacy: optionally avoid persisting the raw preview / sender server-side.
+    store_raw = get_settings().store_raw_content
     report_row = repository.save_report(
         db,
         report_data={
             "modality": report["modality"],
             "source": report.get("source"),
-            "sender": report.get("sender"),
+            "sender": report.get("sender") if store_raw else None,
             "filename": report.get("filename"),
-            "input_preview": report.get("input_preview"),
+            "input_preview": report.get("input_preview") if store_raw else None,
             "trust_score": report["trust_score"],
             "band": report["band"],
             "band_label": report["band_label"],

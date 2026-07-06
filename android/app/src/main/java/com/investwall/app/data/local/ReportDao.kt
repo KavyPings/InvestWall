@@ -24,6 +24,9 @@ interface ReportDao {
     @Query("SELECT COUNT(*) FROM reports")
     fun observeTotalCount(): Flow<Int>
 
+    @Query("DELETE FROM reports WHERE id = :id")
+    suspend fun deleteById(id: String)
+
     @Query("DELETE FROM reports")
     suspend fun clear()
 }

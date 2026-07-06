@@ -66,16 +66,17 @@ def _get_transformer():
     try:
         from transformers import pipeline
 
-        _TRANSFORMER = pipeline(
-            "text-classification",
-            model="mrm8488/bert-tiny-finetuned-sms-spam-detection",
-            truncation=True,
-        )
-        logger.info("Loaded transformer spam classifier")
+        model = get_settings().transformer_model
+        _TRANSFORMER = pipeline("text-classification", model=model, truncation=True)
+        logger.info("Loaded transformer classifier: %s", model)
     except Exception as exc:  # pragma: no cover
         logger.warning("Transformer classifier unavailable: %s", exc)
         _TRANSFORMER = None
     return _TRANSFORMER
+
+
+def transformer_loaded() -> bool:
+    return _TRANSFORMER is not None
 
 
 def _stylometry_ai_score(text: str) -> tuple[float, str]:

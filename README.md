@@ -309,6 +309,35 @@ Base URL: `http://<host>:8000/`
 
 ---
 
+## 11b. Privacy model — hybrid on-device + server
+
+InvestWall uses a **privacy-first hybrid**: the common, sensitive cases are handled
+entirely on the phone, and only heavier analysis is escalated to the backend —
+and only when you choose.
+
+| Content | Where it's analyzed | Leaves the device? |
+|---|---|---|
+| **Typed text / SMS / shared text** | **On-device** rule engine (Kotlin port of the backend rules + domain registry) | ❌ No |
+| **Deep AI check** (opt-in button on a report) | Backend (full engines + optional ML) | ✅ Yes, on tap |
+| **Files** (image / video / audio / PDF) | Backend (needs big models) | ✅ Yes, on pick/share |
+
+- **On-device engine** (`android/.../local/`): the same phishing/scam rules, URL
+  and typosquat checks, official-domain registry, evidence fusion (identical PRD
+  weights), and template explanation — running locally with **no network**. Your
+  SMS and messages get an instant, private Trust Score.
+- **Deep AI check**: any on-device report shows a *"Run deep AI check"* button
+  that re-sends the text to your backend for full model analysis. Explicit, opt-in.
+- **Self-hostable backend**: the server URL is configurable, so a privacy-conscious
+  user (or a broker/SEBI) runs their **own** backend — content only ever goes to a
+  server they control.
+- **No-retention mode**: set `STORE_RAW_CONTENT=0` on the backend so it persists
+  only scores/evidence/metadata, never the raw text or sender.
+
+This makes the PRD's "privacy-first" claim true where it matters most: the highest-volume,
+most sensitive channel (text/SMS) never leaves the phone by default, while deepfake
+image/video/audio detection — which genuinely needs large models — stays server-side
+and opt-in.
+
 ## 12. Design Philosophy
 
 **Backend** — a modular, explainable pipeline: specialised detectors beat one general model; the fusion layer combines independent signals into a calibrated decision; the LLM adds transparency, not detection. Everything degrades gracefully (SQLite instead of Postgres, in-memory cache instead of Redis, OpenCV instead of system FFmpeg, template explainer instead of an LLM server), so it boots and returns real results with only the base dependencies and no network.

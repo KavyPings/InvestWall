@@ -100,12 +100,19 @@ pip install -r requirements-optional.txt
 
 | Flag | Effect | Needs |
 |------|--------|-------|
-| `ENABLE_TRANSFORMERS=1` | Neural text spam/scam classifier | transformers + torch |
-| `ENABLE_WHISPER=1` | Audio speech-to-text → transcript scam analysis | faster-whisper |
+| `ENABLE_TRANSFORMERS=1` | Neural text spam/scam classifier (model from `TRANSFORMER_MODEL`) | transformers + torch |
+| `ENABLE_WHISPER=1` | Audio speech-to-text → transcript scam analysis (`WHISPER_MODEL`) | faster-whisper |
 | `ENABLE_QR=1` | QR decoding in images/PDFs | pyzbar + zbar |
 | `ENABLE_DNS=1` (default) | Live SPF/DMARC lookups | network |
+| `STORE_RAW_CONTENT=0` | Privacy: persist only scores/evidence, never raw text/sender | — |
 | `LLM_PROVIDER=ollama` | Local Gemma/Qwen/Llama prose | running Ollama |
 | `LLM_PROVIDER=hosted` | Hosted LLM prose | `HOSTED_LLM_API_KEY` |
+
+`GET /health` reports which flags are on and whether the transformer actually
+loaded (`transformer_loaded`). First request after enabling a model is slow while
+weights download/load, then cached. A GPU is recommended once image/video/audio
+models are wired in. The Android app calls the backend only for the opt-in **deep
+AI check** and **file analysis** — text/SMS are screened on-device.
 
 ## Tests
 

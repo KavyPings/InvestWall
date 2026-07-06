@@ -11,9 +11,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.MailOutline
 import androidx.compose.material.icons.outlined.Sms
 import androidx.compose.material3.MaterialTheme
@@ -82,6 +84,27 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                 style = MaterialTheme.typography.headlineSmall,
                 modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
             )
+        }
+
+        // Privacy explainer — the hybrid model.
+        item {
+            SectionCard {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    androidx.compose.material3.Icon(Icons.Outlined.Lock, null, tint = SafeGreen)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Privacy", color = TextPrimary, style = MaterialTheme.typography.titleMedium)
+                }
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "Text and SMS are analyzed on your device by default — the content never " +
+                        "leaves your phone. A deep AI check (for stronger accuracy) and file " +
+                        "analysis (images, video, audio) use your InvestWall backend, and only " +
+                        "run when you choose. You can point the app at your own self-hosted " +
+                        "backend below.",
+                    color = TextSecondary,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
         }
 
         // Backend connection

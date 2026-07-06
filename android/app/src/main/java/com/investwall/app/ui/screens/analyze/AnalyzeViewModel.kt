@@ -1,5 +1,6 @@
 package com.investwall.app.ui.screens.analyze
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.investwall.app.data.repository.AnalysisRepository
@@ -23,10 +24,18 @@ class AnalyzeViewModel @Inject constructor(
 
     fun analyze(text: String, source: String? = "manual") {
         if (text.isBlank()) return
+        launchAnalyze { repository.analyzeText(text.trim(), source) }
+    }
+
+    fun analyzeFile(uri: Uri) {
+        launchAnalyze { repository.analyzeFile(uri, source = "file") }
+    }
+
+    private fun launchAnalyze(block: suspend () -> com.investwall.app.domain.model.TrustReport) {
         _state.value = UiState.Loading
         viewModelScope.launch {
             _state.value = try {
-                UiState.Success(repository.analyzeText(text.trim(), source))
+                UiState.Success(block())
             } catch (e: IOException) {
                 UiState.Error("Can't reach the backend. Check the server URL in Settings.")
             } catch (e: Exception) {

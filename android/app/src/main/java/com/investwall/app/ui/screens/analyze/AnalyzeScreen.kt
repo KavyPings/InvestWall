@@ -1,5 +1,7 @@
 package com.investwall.app.ui.screens.analyze
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Column
@@ -14,8 +16,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AttachFile
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -35,6 +39,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.investwall.app.ui.UiState
 import com.investwall.app.ui.components.AppTopBar
 import com.investwall.app.ui.components.PrimaryButton
+import com.investwall.app.ui.components.SecondaryButton
 import com.investwall.app.ui.theme.Accent
 import com.investwall.app.ui.theme.Background
 import com.investwall.app.ui.theme.Border
@@ -53,6 +58,11 @@ fun AnalyzeScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     var input by remember { mutableStateOf(TextFieldValue("")) }
 
+    // File picker for image / video / audio / PDF analysis.
+    val filePicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument(),
+    ) { uri -> if (uri != null) viewModel.analyzeFile(uri) }
+
     LaunchedEffect(state) {
         val s = state
         if (s is UiState.Success) {
@@ -62,7 +72,7 @@ fun AnalyzeScreen(
     }
 
     Column(Modifier.fillMaxWidth()) {
-        AppTopBar(title = "Analyze a message", onBack = onBack)
+        AppTopBar(title = "Analyze", onBack = onBack)
         Column(Modifier.padding(16.dp)) {
             Text(
                 "Paste an SMS, email, WhatsApp forward, or any suspicious financial message.",
@@ -97,6 +107,38 @@ fun AnalyzeScreen(
                 enabled = input.text.isNotBlank() && !loading,
                 onClick = { viewModel.analyze(input.text) },
                 modifier = Modifier.fillMaxWidth(),
+            )
+
+            Spacer(Modifier.height(20.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                HorizontalDivider(Modifier.weight(1f), color = Border)
+                Text("  or  ", color = TextMuted, style = MaterialTheme.typography.labelSmall)
+                HorizontalDivider(Modifier.weight(1f), color = Border)
+            }
+            Spacer(Modifier.height(20.dp))
+
+            Text(
+                "Analyze a file — image, video, voice note, or PDF.",
+                color = TextSecondary,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Spacer(Modifier.height(10.dp))
+            SecondaryButton(
+                text = "Choose a file",
+                icon = Icons.Outlined.AttachFile,
+                enabled = !loading,
+                onClick = {
+                    filePicker.launch(
+                        arrayOf("image/*", "video/*", "audio/*", "application/pdf"),
+                    )
+                },
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(Modifier.height(10.dp))
+            Text(
+                "Tip: you can also Share content from WhatsApp, your gallery, or any app into InvestWall.",
+                color = TextMuted,
+                style = MaterialTheme.typography.labelSmall,
             )
 
             if (loading) {

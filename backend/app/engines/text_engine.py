@@ -178,10 +178,16 @@ class TextEngine(Engine):
         # low-risk signal in its own right. Without this, an innocuous message
         # (no signals at all) would fuse to a neutral 50 and be mislabelled
         # "Potentially Manipulated" — a false positive the PRD wants to avoid.
+        # This applies to any non-empty text, including very short ones like
+        # "hi" (which otherwise had no components at all).
         has_phishing = any(i.component is Component.PHISHING for i in bundle.items)
-        if not has_phishing and len(_WORD_RE.findall(clean)) >= 4:
+        if not has_phishing and clean:
+            # Slightly higher residual risk for very short text, where we simply
+            # have little to judge on, so confidence stays modest.
+            word_count = len(_WORD_RE.findall(clean))
+            baseline = 0.2 if word_count < 3 else 0.12
             bundle.add(
-                "no_phishing_indicators", 0.12,
+                "no_phishing_indicators", baseline,
                 "No phishing, scam, or urgency indicators were detected in the text.",
                 Component.PHISHING, weight=0.5,
             )

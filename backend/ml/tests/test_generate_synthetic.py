@@ -3,8 +3,10 @@ from __future__ import annotations
 from ml.schema import Label, Register
 from ml.scripts.generate_synthetic import (
     ARCHETYPES,
+    Archetype,
     SyntheticGenerator,
     build_prompt,
+    iter_generation_jobs,
     parse_response,
 )
 
@@ -53,3 +55,24 @@ def test_generate_batch_uses_injected_chat_fn():
     assert examples[0].register == Register.ENGLISH
     assert examples[0].archetype == archetype.id
     assert examples[0].text == "Example one"
+
+
+def test_iter_generation_jobs_skips_mismatched_only_label():
+    scam_archetype = Archetype("a", "desc", [])
+    legit_only_archetype = Archetype("b", "desc", [], only_label=Label.LEGIT)
+
+    jobs = list(iter_generation_jobs(
+        [scam_archetype, legit_only_archetype],
+        [Register.ENGLISH], [Label.SCAM, Label.LEGIT],
+    ))
+
+    assert (scam_archetype, Register.ENGLISH, Label.SCAM) in jobs
+    assert (scam_archetype, Register.ENGLISH, Label.LEGIT) in jobs
+    assert (legit_only_archetype, Register.ENGLISH, Label.LEGIT) in jobs
+    assert (legit_only_archetype, Register.ENGLISH, Label.SCAM) not in jobs
+
+
+def test_archetypes_has_at_least_40_entries_with_unique_ids():
+    assert len(ARCHETYPES) >= 40
+    ids = [a.id for a in ARCHETYPES]
+    assert len(ids) == len(set(ids))

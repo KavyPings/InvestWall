@@ -5,19 +5,17 @@ many paraphrases of the same archetype).
 """
 from __future__ import annotations
 
-import math
 from typing import Callable
+
+import numpy as np
 
 from ml.schema import Example
 
 
-def _cosine(a: list[float], b: list[float]) -> float:
-    dot = sum(x * y for x, y in zip(a, b))
-    norm_a = math.sqrt(sum(x * x for x in a))
-    norm_b = math.sqrt(sum(y * y for y in b))
-    if norm_a == 0 or norm_b == 0:
-        return 0.0
-    return dot / (norm_a * norm_b)
+def _normalize_rows(vectors: np.ndarray) -> np.ndarray:
+    norms = np.linalg.norm(vectors, axis=1, keepdims=True)
+    norms[norms == 0] = 1.0  # avoid div-by-zero; a zero vector stays zero
+    return vectors / norms
 
 
 def dedupe(
@@ -26,19 +24,31 @@ def dedupe(
     threshold: float = 0.92,
 ) -> list[Example]:
     """Greedy near-duplicate removal: keeps the first occurrence of each
-    cluster of examples whose embeddings are >= threshold cosine-similar."""
+    cluster of examples whose embeddings are >= threshold cosine-similar.
+
+    Vectorized with numpy (normalize once, then a running matrix-vector dot
+    product against already-kept rows) rather than a pure-Python O(n^2)
+    loop. At real dataset scale (~53k examples) the naive pure-Python
+    version was an estimated ~1.4 billion interpreted cosine calls — many
+    hours; this does the equivalent comparisons as numpy/BLAS matrix-vector
+    products, which is seconds to low minutes.
+    """
     if not examples:
         return []
 
-    vectors = embed_fn([ex.text for ex in examples])
-    kept: list[Example] = []
-    kept_vectors: list[list[float]] = []
+    raw_vectors = np.asarray(embed_fn([ex.text for ex in examples]), dtype=np.float32)
+    normalized = _normalize_rows(raw_vectors)
 
-    for ex, vec in zip(examples, vectors):
-        is_duplicate = any(_cosine(vec, kv) >= threshold for kv in kept_vectors)
-        if not is_duplicate:
-            kept.append(ex)
-            kept_vectors.append(vec)
+    kept_vectors = np.empty_like(normalized)
+    kept_count = 0
+    kept: list[Example] = []
+
+    for ex, vec in zip(examples, normalized):
+        if kept_count > 0 and (kept_vectors[:kept_count] @ vec).max() >= threshold:
+            continue
+        kept_vectors[kept_count] = vec
+        kept_count += 1
+        kept.append(ex)
 
     return kept
 

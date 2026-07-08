@@ -2,8 +2,8 @@
 the current default transformer_model in backend/app/config.py.
 
 Run (after training):
-    python -m ml.evaluate --model models/muril-scam-classifier \
-        --known-tricky eval/known_tricky.jsonl --baseline-f1 <rule-only-f1>
+    python -m ml.evaluate --model ml/models/muril-scam-classifier \
+        --known-tricky ml/eval/known_tricky.jsonl --baseline-f1 <rule-only-f1>
 """
 from __future__ import annotations
 
@@ -56,7 +56,7 @@ def evaluate_known_tricky(model_dir: str, known_tricky_path: str) -> float:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--model", required=True)
-    parser.add_argument("--known-tricky", default="eval/known_tricky.jsonl")
+    parser.add_argument("--known-tricky", default="ml/eval/known_tricky.jsonl")
     parser.add_argument("--baseline-f1", type=float, required=True)
     parser.add_argument("--new-f1", type=float, required=True)
     args = parser.parse_args()

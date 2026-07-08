@@ -1,10 +1,10 @@
 """Fine-tune MuRIL as a binary scam/legit text classifier.
 
-Run (after backend/ml/requirements.txt is installed and data/processed/
+Run (after backend/ml/requirements.txt is installed and ml/data/processed/
 has been produced by build_dataset.py):
 
-    python -m ml.train --train data/processed/train.jsonl \
-        --val data/processed/val.jsonl --out models/muril-scam-classifier
+    python -m ml.train --train ml/data/processed/train.jsonl \
+        --val ml/data/processed/val.jsonl --out ml/models/muril-scam-classifier
 
 MuRIL (google/muril-base-cased) is used instead of an English-only model
 because it is trained on Indian languages including transliterated/
@@ -62,9 +62,9 @@ def main() -> None:
     from transformers import Trainer, TrainingArguments
 
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--train", default="data/processed/train.jsonl")
-    parser.add_argument("--val", default="data/processed/val.jsonl")
-    parser.add_argument("--out", default="models/muril-scam-classifier")
+    parser.add_argument("--train", default="ml/data/processed/train.jsonl")
+    parser.add_argument("--val", default="ml/data/processed/val.jsonl")
+    parser.add_argument("--out", default="ml/models/muril-scam-classifier")
     parser.add_argument("--epochs", type=int, default=3)
     parser.add_argument("--batch-size", type=int, default=16)
     parser.add_argument("--lr", type=float, default=2e-5)

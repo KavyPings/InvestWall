@@ -1,9 +1,16 @@
 # ML pipeline deps (data prep + training). Isolated from backend/requirements*.txt
 # since this code only runs during offline dataset/model prep, never in the
 # serving app. Install with: pip install -r ml/requirements.txt
+#
+# --extra-index-url below is required so `torch` resolves to a CUDA-enabled
+# build instead of PyPI's default CPU-only wheel (training MuRIL on CPU is
+# ~100x+ slower — confirmed via a 47-hour ETA before this fix). cu124 works
+# via driver backward-compatibility on any reasonably recent NVIDIA driver.
+--extra-index-url https://download.pytorch.org/whl/cu124
 datasets==3.2.0
 torch==2.5.1
 transformers==4.48.0
+accelerate>=0.26.0
 sentence-transformers==3.3.1
 scikit-learn==1.6.0
 openai==2.41.0

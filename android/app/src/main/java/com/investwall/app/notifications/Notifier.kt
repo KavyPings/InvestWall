@@ -33,7 +33,7 @@ class Notifier @Inject constructor(
             .createNotificationChannel(channel)
     }
 
-    fun notifyResult(report: TrustReport, sender: String?) {
+    fun notifyResult(report: TrustReport, sender: String?, notificationKey: Int = report.id.hashCode()) {
         // Only alert when there is something to worry about.
         if (report.band == TrustBand.HIGHLY_AUTHENTIC) return
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS)
@@ -67,7 +67,7 @@ class Notifier @Inject constructor(
             .setContentIntent(openApp)
             .build()
 
-        NotificationManagerCompat.from(context).notify(report.id.hashCode(), notification)
+        NotificationManagerCompat.from(context).notify(notificationKey, notification)
     }
 
     companion object {

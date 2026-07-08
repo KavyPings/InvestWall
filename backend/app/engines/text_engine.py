@@ -226,7 +226,7 @@ class TextEngine(Engine):
             out = clf(text[:512])[0]
             label = str(out.get("label", "")).lower()
             conf = float(out.get("score", 0.0))
-            if "spam" in label or label in {"label_1", "1"}:
+            if "spam" in label or "scam" in label or label in {"label_1", "1"}:
                 bundle.add(
                     "transformer_spam", conf,
                     "Neural classifier flags this as spam/scam-like.",

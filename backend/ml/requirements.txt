@@ -1,0 +1,9 @@
+# ML pipeline deps (data prep + training). Isolated from backend/requirements*.txt
+# since this code only runs during offline dataset/model prep, never in the
+# serving app. Install with: pip install -r ml/requirements.txt
+datasets==3.2.0
+torch==2.5.1
+transformers==4.48.0
+sentence-transformers==3.3.1
+scikit-learn==1.6.0
+requests==2.32.3

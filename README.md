@@ -309,34 +309,32 @@ Base URL: `http://<host>:8000/`
 
 ---
 
-## 11b. Privacy model — hybrid on-device + server
+## 11b. Privacy model — hybrid on-device + automatic backend check
 
-InvestWall uses a **privacy-first hybrid**: the common, sensitive cases are handled
-entirely on the phone, and only heavier analysis is escalated to the backend —
-and only when you choose.
+InvestWall runs the on-device rule engine on every message first, for an
+instant, private, offline-capable result — then **automatically** (no
+button, no opt-in) sends the same text to your configured backend so the
+trained scam/phishing model can refine the verdict. This is a deliberate
+tradeoff for detection quality: earlier versions of this document
+described text as staying on-device by default, but automatic backend
+checking means every SMS and shared text now leaves the device by
+default.
 
 | Content | Where it's analyzed | Leaves the device? |
 |---|---|---|
-| **Typed text / SMS / shared text** | **On-device** rule engine (Kotlin port of the backend rules + domain registry) | ❌ No |
-| **Deep AI check** (opt-in button on a report) | Backend (full engines + optional ML) | ✅ Yes, on tap |
+| **Typed text / SMS / shared text** | On-device rule engine (instant) **then** automatically re-checked by the backend's trained model | ✅ Yes, automatically, in the background |
 | **Files** (image / video / audio / PDF) | Backend (needs big models) | ✅ Yes, on pick/share |
 
-- **On-device engine** (`android/.../local/`): the same phishing/scam rules, URL
-  and typosquat checks, official-domain registry, evidence fusion (identical PRD
-  weights), and template explanation — running locally with **no network**. Your
-  SMS and messages get an instant, private Trust Score.
-- **Deep AI check**: any on-device report shows a *"Run deep AI check"* button
-  that re-sends the text to your backend for full model analysis. Explicit, opt-in.
-- **Self-hostable backend**: the server URL is configurable, so a privacy-conscious
-  user (or a broker/SEBI) runs their **own** backend — content only ever goes to a
-  server they control.
-- **No-retention mode**: set `STORE_RAW_CONTENT=0` on the backend so it persists
-  only scores/evidence/metadata, never the raw text or sender.
+Privacy levers that still apply:
 
-This makes the PRD's "privacy-first" claim true where it matters most: the highest-volume,
-most sensitive channel (text/SMS) never leaves the phone by default, while deepfake
-image/video/audio detection — which genuinely needs large models — stays server-side
-and opt-in.
+- **Self-hostable backend**: the server URL is configurable, so a
+  privacy-conscious user (or a broker/SEBI) runs their **own** backend —
+  content only ever goes to a server they control, never a third party.
+- **No-retention mode**: set `STORE_RAW_CONTENT=0` on the backend so it
+  persists only scores/evidence/metadata, never the raw text or sender.
+- **Offline fallback**: if the backend is unreachable, the on-device rule
+  result is what the user sees — analysis is never blocked on network
+  availability, only refined by it.
 
 ## 12. Design Philosophy
 

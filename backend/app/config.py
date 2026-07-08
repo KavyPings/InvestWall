@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     enable_dns: bool = True
 
     # Model choices (used only when the matching flag is on)
-    transformer_model: str = "mrm8488/bert-tiny-finetuned-sms-spam-detection"
+    transformer_model: str = "./ml/models/muril-scam-classifier"
     whisper_model: str = "tiny"
     # Deepfake/manipulated-image detector (image-classification pipeline).
     image_model: str = "dima806/deepfake_vs_real_image_detection"

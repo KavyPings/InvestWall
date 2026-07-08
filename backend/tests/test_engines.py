@@ -82,6 +82,44 @@ def test_authenticity_impersonation_claim():
     assert auth and max(auth) >= 0.7  # high risk claimed-but-unverified
 
 
+def test_text_engine_flags_paraphrased_guaranteed_return_scam():
+    # A paraphrase that doesn't match the literal FINANCIAL_SCAM_RULES regexes
+    # word-for-word, but uses a keyword newly added from the scam-quote bank.
+    # Note: the engine always emits a low-score "no_phishing_indicators"
+    # baseline (~0.12) when no rule fires, so a bare "evidence exists" check
+    # would pass vacuously — assert a real signal fired with a real score.
+    text = (
+        "Join our exclusive trading circle, members are seeing consistent "
+        "payouts every single week with a no-loss approach to every trade."
+    )
+    b = TextEngine().analyze(Payload(modality=Modality.TEXT, text=text))
+    signals = {e.signal for e in b.items}
+    phishing = _scores(b, Component.PHISHING)
+    assert "no_phishing_indicators" not in signals
+    assert phishing and max(phishing) >= 0.3
+
+
+def test_transformer_score_recognizes_scam_label(monkeypatch):
+    import app.engines.text_engine as text_engine_module
+
+    class _FakeClassifier:
+        def __call__(self, text):
+            return [{"label": "scam", "score": 0.93}]
+
+    class _FakeSettings:
+        enable_transformers = True
+
+    monkeypatch.setattr(text_engine_module, "_get_transformer", lambda: _FakeClassifier())
+    monkeypatch.setattr(text_engine_module, "get_settings", lambda: _FakeSettings())
+
+    bundle = TextEngine().analyze(
+        Payload(modality=Modality.TEXT, text="Some message long enough to classify")
+    )
+    signals = {e.signal: e for e in bundle.items}
+    assert "transformer_spam" in signals
+    assert signals["transformer_spam"].score == 0.93
+
+
 def test_image_engine_on_generated_png():
     # A tiny flat synthetic PNG: no EXIF, ultra-smooth => AI/metadata signals.
     from PIL import Image

@@ -4,6 +4,7 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.investwall.app.data.repository.AnalysisRepository
+import com.investwall.app.domain.VerdictChange
 import com.investwall.app.domain.model.TrustReport
 import com.investwall.app.ui.UiState
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -28,8 +29,30 @@ class ShareViewModel @Inject constructor(
     fun analyzeText(text: String, source: String?) {
         if (started) return
         started = true
-        // Shared text is screened on-device (private); files go to the server.
-        analyze { repository.analyzeTextLocally(text, source ?: "shared") }
+        // Instant on-device result first, then automatically (no button)
+        // escalate to the backend's trained model and refine the result if
+        // it changes meaningfully — matches the SMS auto-escalation flow.
+        viewModelScope.launch {
+            _state.value = UiState.Loading
+            val localReport = try {
+                repository.analyzeTextLocally(text, source ?: "shared")
+            } catch (e: Exception) {
+                _state.value = UiState.Error(e.message ?: "Analysis failed.")
+                return@launch
+            }
+            _state.value = UiState.Success(localReport)
+
+            try {
+                val serverReport = repository.deepCheck(localReport)
+                if (VerdictChange.isMeaningfulChange(localReport, serverReport)) {
+                    _state.value = UiState.Success(serverReport)
+                }
+            } catch (e: IOException) {
+                // Backend unreachable — keep showing the on-device result.
+            } catch (e: Exception) {
+                // Escalation failed for another reason — keep the on-device result.
+            }
+        }
     }
 
     fun analyzeUri(uri: Uri, source: String?) {

@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import re
 
+from app.knowledge.scam_quotes import KEYWORD_ADDITIONS
+
 # (compiled regex, weight, human reason) — financial-scam language
 FINANCIAL_SCAM_RULES: list[tuple[re.Pattern[str], float, str]] = [
     (re.compile(r"\bguarantee(d|s)?\b.{0,20}\b(return|profit|income|gain)", re.I),
@@ -62,6 +64,7 @@ RISKY_KEYWORDS: dict[str, float] = {
     "congratulations": 0.35, "claim now": 0.5, "free money": 0.6,
     "work from home": 0.3, "part time income": 0.35, "refund": 0.3,
     "wire transfer": 0.4, "gift card": 0.5, "bonus": 0.25,
+    **KEYWORD_ADDITIONS,
 }
 
 # URL shorteners frequently used to hide destinations.

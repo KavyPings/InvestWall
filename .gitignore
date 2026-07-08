@@ -24,3 +24,7 @@ local.properties
 android/build/
 android/app/build/
 android/.cxx/
+
+# ML pipeline (backend/ml/)
+backend/ml/data/raw/
+backend/ml/models/

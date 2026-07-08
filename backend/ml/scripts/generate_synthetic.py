@@ -14,6 +14,8 @@ from __future__ import annotations
 import argparse
 import os
 import re
+import time
+from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Iterator
@@ -21,7 +23,7 @@ from typing import Callable, Iterator
 from dotenv import load_dotenv
 
 from app.knowledge.scam_quotes import SCAM_QUOTE_BANK
-from ml.schema import Example, Label, Register, Source, write_jsonl
+from ml.schema import Example, Label, Register, Source, read_jsonl, write_jsonl
 
 
 @dataclass(frozen=True)
@@ -46,14 +48,18 @@ ARCHETYPES: list[Archetype] = [
                _seeds_for("guaranteed_returns")),
     Archetype("guaranteed_returns_daily_payout", "Promises quick daily/weekly payouts regardless of market conditions",
                _seeds_for("guaranteed_returns_daily_payout")),
+    # only_label=SCAM below: "unregistered"/"insider" are illegal/non-compliant
+    # by definition, so there is no natural "genuine, non-scam" counterpart —
+    # a legit registered-advisor equivalent already exists as
+    # legit_sebi_language / legit_research_disclaimer.
     Archetype("unregistered_advisor_paid_tips", "An unregistered advisor selling paid stock tips/signals without SEBI registration",
-               _seeds_for("unregistered_advisor_paid_tips")),
+               _seeds_for("unregistered_advisor_paid_tips"), only_label=Label.SCAM),
     Archetype("account_handling_scam", "Offers to 'handle'/manage the victim's trading account directly in exchange for a guaranteed profit share",
                _seeds_for("account_handling_scam")),
     Archetype("complex_strategy_obfuscation", "Credits success to a vaguely-described 'highly complex' proprietary strategy while refusing to explain the risk",
                _seeds_for("complex_strategy_obfuscation")),
     Archetype("insider_tip", "Sure-shot / insider stock tips with high win-rate claims",
-               _seeds_for("insider_tip")),
+               _seeds_for("insider_tip"), only_label=Label.SCAM),
     # --- Fake regulator / institutional impersonation family ---
     Archetype("fake_regulator_approval", "Falsely implies SEBI/RBI/NSE/BSE approval or endorsement",
                _seeds_for("fake_regulator_approval")),
@@ -86,13 +92,19 @@ ARCHETYPES: list[Archetype] = [
                _seeds_for("task_scam_bait")),
     Archetype("task_scam_trust_building", "Pays out small real amounts for simple tasks to build trust before introducing an 'investment task'",
                _seeds_for("task_scam_trust_building")),
+    # only_label=SCAM: the pay-to-play "deposit for a bigger return" mechanic
+    # IS the fraud — there's no legitimate business model matching this
+    # description, so a "genuine, non-scam" version is a contradiction.
     Archetype("task_scam_investment_escalation", "An 'investment task' requiring an upfront deposit with a promised larger return, escalating in amount over time",
-               _seeds_for("task_scam_investment_escalation")),
+               _seeds_for("task_scam_investment_escalation"), only_label=Label.SCAM),
     Archetype("task_scam_fake_earnings_screenshot", "Shares fabricated screenshots of other members' large earnings to pressure the victim into depositing more",
                _seeds_for("task_scam_fake_earnings_screenshot")),
     # --- Fake trading app / platform family ---
+    # only_label=SCAM: description bakes in "fake"/"fabricated", making a
+    # "genuine, non-scam" version of it self-contradictory (confirmed by
+    # 100% failure rate in the 2026-07-08 generation run before this fix).
     Archetype("fake_trading_app_generic", "Promotes a fake trading/investment app installed outside official app stores, showing fabricated profit dashboards",
-               _seeds_for("fake_trading_app_generic")),
+               _seeds_for("fake_trading_app_generic"), only_label=Label.SCAM),
     Archetype("fake_app_withdrawal_block", "The fake app blocks withdrawal of funds/profits unless the victim deposits an additional 'fee', 'tax', or 'unlock' amount",
                _seeds_for("fake_app_withdrawal_block")),
     Archetype("fake_broker_website_clone", "A cloned website visually mimicking a real broker's login page to harvest credentials",
@@ -100,8 +112,10 @@ ARCHETYPES: list[Archetype] = [
     # --- IPO / dabba / algo-trading family ---
     Archetype("fake_ipo_allotment", "Promises guaranteed or exclusive IPO share allotment in exchange for an upfront payment beyond official retail limits",
                _seeds_for("fake_ipo_allotment")),
+    # only_label=SCAM: "dabba" trading is illegal by definition (confirmed
+    # 100% failure rate before this fix — there's no legitimate version).
     Archetype("dabba_trading_recruit", "Recruits into illegal off-exchange 'dabba' trading with no real regulatory protection or settlement",
-               _seeds_for("dabba_trading_recruit")),
+               _seeds_for("dabba_trading_recruit"), only_label=Label.SCAM),
     Archetype("fake_algo_trading_bot", "Sells an 'automated algo-trading bot' claiming consistent automated profits with no manual effort",
                _seeds_for("fake_algo_trading_bot")),
     # --- Credential harvesting / account-threat family ---
@@ -114,24 +128,30 @@ ARCHETYPES: list[Archetype] = [
     Archetype("fake_broker_support_call", "A caller impersonating broker/exchange support requesting screen-sharing or remote-access app installation",
                _seeds_for("fake_broker_support_call")),
     # --- Digital-arrest / law-enforcement impersonation family ---
+    # only_label=SCAM: impersonating police/CBI to extort money is inherently
+    # illegal — there is no "genuine" version of that act to write.
     Archetype("digital_arrest_intro", "Impersonates police/CBI/customs claiming the victim's bank or demat account is linked to money laundering or a criminal case",
-               _seeds_for("digital_arrest_intro")),
+               _seeds_for("digital_arrest_intro"), only_label=Label.SCAM),
     Archetype("digital_arrest_video_hold", "Uses a sustained video-call 'custody' and threats of arrest to pressure a money transfer to 'clear' the victim's name",
-               _seeds_for("digital_arrest_video_hold")),
+               _seeds_for("digital_arrest_video_hold"), only_label=Label.SCAM),
     Archetype("fake_courier_customs_lead_in", "A fake courier/customs notice about an illegal parcel that escalates into a law-enforcement impersonation call demanding payment",
                _seeds_for("fake_courier_customs_lead_in")),
     # --- Pump-and-dump / market-manipulation family ---
+    # only_label=SCAM: coordinated price manipulation is inherently illegal
+    # market conduct with no legitimate counterpart.
     Archetype("pump_and_dump", "Pump-and-dump exhortation on a specific stock",
-               _seeds_for("pump_and_dump")),
+               _seeds_for("pump_and_dump"), only_label=Label.SCAM),
     Archetype("coordinated_telegram_manipulation", "A Telegram/WhatsApp channel coordinating simultaneous buying of a low-liquidity stock ahead of a price target, then dumping",
-               _seeds_for("coordinated_telegram_manipulation")),
+               _seeds_for("coordinated_telegram_manipulation"), only_label=Label.SCAM),
     Archetype("penny_stock_hot_tip", "Unsolicited 'hot tip' on an illiquid penny/small-cap stock claiming imminent multi-fold price movement",
                _seeds_for("penny_stock_hot_tip")),
     # --- Crypto / forex family ---
     Archetype("crypto_scheme", "Daily-payout crypto/forex scheme with profit promises",
                _seeds_for("crypto_scheme")),
+    # only_label=SCAM: the grooming-into-fraud tactic itself is the scam;
+    # there's no natural "genuine" counterpart to this description.
     Archetype("crypto_pig_butchering", "Builds a long-term personal/romantic relationship online before introducing a fraudulent crypto investment platform",
-               _seeds_for("crypto_pig_butchering")),
+               _seeds_for("crypto_pig_butchering"), only_label=Label.SCAM),
     Archetype("forex_signal_seller", "Sells paid forex/binary-options 'signals' claiming a near-100% win rate",
                _seeds_for("forex_signal_seller")),
     # --- Legit-only hard negatives (no natural scam framing; generate LEGIT only) ---
@@ -259,15 +279,61 @@ class SyntheticGenerator:
 
     def generate_batch(
         self, archetype: Archetype, register: Register, label: Label, n: int,
+        max_retries: int = 2, min_fraction: float = 0.8,
+        backoff_seconds: float = 2.0, sleep_fn: Callable[[float], None] = time.sleep,
     ) -> list[Example]:
+        """Requests n examples; if the model returns fewer than
+        min_fraction * n usable lines (occasional format non-compliance or
+        an empty/refusal-shaped response — see the 2026-07-08 backend/ml
+        run where ~44% of batches silently came back empty), retries up to
+        max_retries times and merges unique lines across attempts rather
+        than silently accepting an underfilled or empty batch. Sleeps
+        backoff_seconds between retries (not after the final attempt) in
+        case the underfill was caused by transient rate-limiting."""
         messages = build_prompt(archetype, register, label, n, archetype.seed_quotes)
-        raw = self.chat_fn(messages)
-        lines = parse_response(raw)
+        threshold = n * min_fraction
+        seen: dict[str, None] = {}
+
+        for attempt in range(max_retries + 1):
+            raw = self.chat_fn(messages)
+            for line in parse_response(raw):
+                seen.setdefault(line, None)
+            if len(seen) >= threshold or attempt == max_retries:
+                break
+            sleep_fn(backoff_seconds)
+
         return [
             Example(text=text, label=label, source=Source.SYNTHETIC,
                     register=register, archetype=archetype.id)
-            for text in lines
+            for text in seen
         ]
+
+
+def existing_batch_counts(path: str) -> dict[tuple[str, str, str], int]:
+    """Counts already-generated examples per (archetype, register, label),
+    read from a prior run's output file — empty if the file doesn't exist
+    yet. Used to resume a generation run without redoing completed batches."""
+    if not os.path.exists(path):
+        return {}
+    examples = read_jsonl(path)
+    return dict(Counter((e.archetype, e.register.value, e.label.value) for e in examples))
+
+
+def filter_incomplete_jobs(
+    jobs: list[tuple[Archetype, Register, Label]],
+    counts: dict[tuple[str, str, str], int],
+    n_per_batch: int,
+    min_fraction: float = 0.8,
+) -> list[tuple[Archetype, Register, Label]]:
+    """Keeps only jobs whose existing example count is below the
+    min_fraction * n_per_batch threshold — i.e. skips batches a prior run
+    already filled well enough."""
+    threshold = n_per_batch * min_fraction
+    return [
+        (archetype, register, label)
+        for archetype, register, label in jobs
+        if counts.get((archetype.id, register.value, label.value), 0) < threshold
+    ]
 
 
 def main() -> None:
@@ -288,17 +354,26 @@ def main() -> None:
         return call_bedrock_gpt_oss(messages, args.region, args.model, args.project)
 
     generator = SyntheticGenerator(chat_fn=chat_fn)
-    all_examples: list[Example] = []
     registers = [Register.ENGLISH, Register.HINGLISH, Register.MIXED]
     labels = [Label.SCAM, Label.LEGIT]
 
-    for archetype, register, label in iter_generation_jobs(ARCHETYPES, registers, labels):
+    existing = read_jsonl(args.out) if os.path.exists(args.out) else []
+    counts = existing_batch_counts(args.out)
+    all_jobs = list(iter_generation_jobs(ARCHETYPES, registers, labels))
+    remaining_jobs = filter_incomplete_jobs(all_jobs, counts, args.n_per_batch)
+    print(f"{len(all_jobs) - len(remaining_jobs)}/{len(all_jobs)} batches already "
+          f"filled in {args.out}; generating {len(remaining_jobs)} remaining")
+
+    new_examples: list[Example] = []
+    for archetype, register, label in remaining_jobs:
         batch = generator.generate_batch(archetype, register, label, args.n_per_batch)
-        all_examples.extend(batch)
+        new_examples.extend(batch)
         print(f"{archetype.id}/{register.value}/{label.value}: +{len(batch)}")
 
+    all_examples = existing + new_examples
     write_jsonl(all_examples, args.out)
-    print(f"Wrote {len(all_examples)} synthetic examples to {args.out}")
+    print(f"Wrote {len(all_examples)} synthetic examples to {args.out} "
+          f"({len(new_examples)} newly generated)")
 
 
 if __name__ == "__main__":

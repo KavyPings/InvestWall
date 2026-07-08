@@ -1,15 +1,24 @@
 """Regression gate deciding whether a newly trained model should replace
 the current default transformer_model in backend/app/config.py.
 
+Compares three things:
+1. The rule-only engine's F1 on the held-out test.jsonl split (baseline).
+2. The trained model's F1 on that same split (must beat baseline by a margin).
+3. The trained model's accuracy on the hand-curated known_tricky.jsonl set
+   (the real bar, since it's designed to be harder than the training data).
+
 Run (after training):
     python -m ml.evaluate --model ml/models/muril-scam-classifier \
-        --known-tricky ml/eval/known_tricky.jsonl --baseline-f1 <rule-only-f1>
+        --test ml/data/processed/test.jsonl --known-tricky ml/eval/known_tricky.jsonl
 """
 from __future__ import annotations
 
 import argparse
+from typing import Callable
 
-from ml.schema import read_jsonl
+from sklearn.metrics import accuracy_score, precision_recall_fscore_support
+
+from ml.schema import Example, read_jsonl
 
 
 def should_promote(
@@ -35,39 +44,78 @@ def should_promote(
     return True, "passes both thresholds"
 
 
-def evaluate_known_tricky(model_dir: str, known_tricky_path: str) -> float:
+def rule_only_predict(text: str, threshold: float = 0.5) -> str:
+    """Predicts "scam"/"legit" using only the existing rule-based engines
+    (no ML) — the baseline the trained model must beat."""
+    from app.core.evidence import Component, Modality
+    from app.engines.base import Payload
+    from app.engines.phishing_engine import PhishingEngine
+    from app.engines.text_engine import TextEngine
+
+    payload = Payload(modality=Modality.TEXT, text=text)
+    bundle = TextEngine().analyze(payload)
+    bundle.extend(PhishingEngine().analyze(payload))
+    score = bundle.component_score(Component.PHISHING) or 0.0
+    return "scam" if score >= threshold else "legit"
+
+
+def evaluate_predictions(examples: list[Example], predict_fn: Callable[[str], str]) -> dict:
+    """Computes accuracy/precision/recall/f1 (positive class = "scam") for
+    predict_fn's output against each example's true label."""
+    y_true = [ex.label.value for ex in examples]
+    y_pred = [predict_fn(ex.text) for ex in examples]
+
+    precision, recall, f1, _ = precision_recall_fscore_support(
+        y_true, y_pred, average="binary", pos_label="scam", zero_division=0,
+    )
+    return {
+        "accuracy": accuracy_score(y_true, y_pred),
+        "precision": precision,
+        "recall": recall,
+        "f1": f1,
+    }
+
+
+def build_model_predict_fn(model_dir: str) -> Callable[[str], str]:
     from transformers import pipeline
 
     classifier = pipeline("text-classification", model=model_dir, truncation=True)
-    examples = read_jsonl(known_tricky_path)
 
-    correct = 0
-    for ex in examples:
-        result = classifier(ex.text[:512])[0]
-        predicted_label = result["label"].lower()
-        is_scam_prediction = "scam" in predicted_label
-        is_scam_actual = ex.label.value == "scam"
-        if is_scam_prediction == is_scam_actual:
-            correct += 1
+    def predict(text: str) -> str:
+        result = classifier(text[:512])[0]
+        label = str(result["label"]).lower()
+        return "scam" if "scam" in label else "legit"
 
-    return correct / len(examples)
+    return predict
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--model", required=True)
+    parser.add_argument("--test", default="ml/data/processed/test.jsonl")
     parser.add_argument("--known-tricky", default="ml/eval/known_tricky.jsonl")
-    parser.add_argument("--baseline-f1", type=float, required=True)
-    parser.add_argument("--new-f1", type=float, required=True)
     args = parser.parse_args()
 
-    accuracy = evaluate_known_tricky(args.model, args.known_tricky)
+    test_examples = read_jsonl(args.test)
+
+    print(f"Evaluating rule-only baseline on {len(test_examples)} held-out test examples...")
+    baseline_metrics = evaluate_predictions(test_examples, rule_only_predict)
+    print(f"  baseline: {baseline_metrics}")
+
+    print("Loading trained model and evaluating on the same test set...")
+    model_predict = build_model_predict_fn(args.model)
+    model_metrics = evaluate_predictions(test_examples, model_predict)
+    print(f"  model:    {model_metrics}")
+
+    known_tricky_examples = read_jsonl(args.known_tricky)
+    known_tricky_accuracy = evaluate_predictions(known_tricky_examples, model_predict)["accuracy"]
+    print(f"known_tricky accuracy: {known_tricky_accuracy:.3f}")
+
     ok, reason = should_promote(
-        new_metrics={"f1": args.new_f1},
-        baseline_metrics={"f1": args.baseline_f1},
-        known_tricky_accuracy=accuracy,
+        new_metrics=model_metrics,
+        baseline_metrics=baseline_metrics,
+        known_tricky_accuracy=known_tricky_accuracy,
     )
-    print(f"known_tricky accuracy: {accuracy:.3f}")
     print(f"Promote: {ok} ({reason})")
 
 

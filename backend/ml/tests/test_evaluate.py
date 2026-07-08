@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from ml.evaluate import should_promote
+from ml.evaluate import evaluate_predictions, rule_only_predict, should_promote
+from ml.schema import Example, Label, Register, Source
 
 
 def test_promotes_when_both_thresholds_met():
@@ -30,3 +31,37 @@ def test_rejects_when_f1_improvement_too_small():
     )
     assert ok is False
     assert "f1" in reason
+
+
+def test_rule_only_predict_flags_obvious_scam():
+    text = (
+        "URGENT! SEBI has approved GUARANTEED 40% monthly returns on this stock. "
+        "Act now, limited time only! Verify your demat account and click "
+        "http://bit.ly/sebi-invest to claim your risk-free profit today!!!"
+    )
+    assert rule_only_predict(text) == "scam"
+
+
+def test_rule_only_predict_leaves_benign_text_as_legit():
+    text = (
+        "Hi, are we still meeting for coffee tomorrow at 5pm near the office? "
+        "Let me know if that time works for you or if you'd prefer later."
+    )
+    assert rule_only_predict(text) == "legit"
+
+
+def test_evaluate_predictions_computes_metrics_from_injected_predict_fn():
+    examples = [
+        Example(text="a", label=Label.SCAM, source=Source.CURATED, register=Register.ENGLISH),
+        Example(text="b", label=Label.SCAM, source=Source.CURATED, register=Register.ENGLISH),
+        Example(text="c", label=Label.LEGIT, source=Source.CURATED, register=Register.ENGLISH),
+        Example(text="d", label=Label.LEGIT, source=Source.CURATED, register=Register.ENGLISH),
+    ]
+    # predicts "scam" for a and c, "legit" for b and d:
+    # a: correct (scam->scam), b: wrong (scam->legit), c: wrong (legit->scam), d: correct
+    predictions = {"a": "scam", "b": "legit", "c": "scam", "d": "legit"}
+
+    metrics = evaluate_predictions(examples, lambda text: predictions[text])
+
+    assert metrics["accuracy"] == 0.5
+    assert set(metrics.keys()) >= {"accuracy", "precision", "recall", "f1"}

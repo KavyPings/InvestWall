@@ -6,7 +6,7 @@ Sources (Hugging Face Hub dataset IDs — update here if a dataset moves):
   (0 = ham/legit, 1 = spam/scam).
 - "zefang-liu/phishing-email-dataset": combined phishing/legit email corpus
   (built from Enron, Nazario, SpamAssassin, CEAS, Ling), fields
-  {"text_combined": str, "label": int} (1 = phishing, 0 = legitimate).
+  {"Email Text": str, "Email Type": "Phishing Email" | "Safe Email"}.
 
 Run: python -m ml.scripts.fetch_public_datasets --out data/raw/public.jsonl
 """
@@ -35,10 +35,10 @@ def normalize_sms_spam(rows: list[dict]) -> list[Example]:
 def normalize_phishing_email(rows: list[dict]) -> list[Example]:
     examples = []
     for row in rows:
-        text = (row.get("text_combined") or "").strip()
+        text = (row.get("Email Text") or "").strip()
         if not text:
             continue
-        label = Label.SCAM if int(row["label"]) == 1 else Label.LEGIT
+        label = Label.SCAM if row.get("Email Type") == "Phishing Email" else Label.LEGIT
         examples.append(Example(text=text, label=label, source=Source.PUBLIC,
                                  register=Register.ENGLISH))
     return examples

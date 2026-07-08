@@ -6,6 +6,7 @@ train, evaluate) so scripts can be composed without re-parsing formats.
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import asdict, dataclass
 from enum import Enum
 
@@ -54,6 +55,9 @@ class Example:
 
 
 def write_jsonl(examples: list[Example], path: str) -> None:
+    parent = os.path.dirname(path)
+    if parent:
+        os.makedirs(parent, exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
         for ex in examples:
             f.write(ex.to_json() + "\n")

@@ -1,10 +1,13 @@
 """Generate synthetic scam/legit examples across English, Hinglish, and
-mixed registers, using an LLM (GPT-OSS-120B via an OpenAI-compatible API)
-seeded with real quotes from app.knowledge.scam_quotes.SCAM_QUOTE_BANK.
+mixed registers, using GPT-OSS-120B via AWS Bedrock, seeded with real
+quotes from app.knowledge.scam_quotes.SCAM_QUOTE_BANK.
+
+Credentials: set AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY / AWS_REGION in
+ml/.env (gitignored — never commit it) or your environment; boto3's
+default credential chain picks them up automatically.
 
 Run: python -m ml.scripts.generate_synthetic --out data/synthetic/synthetic.jsonl \
-    --api-key $GPT_OSS_API_KEY --base-url https://api.<provider>.com/v1 \
-    --model gpt-oss-120b --n-per-batch 40
+    --region eu-north-1 --n-per-batch 40
 """
 from __future__ import annotations
 
@@ -12,7 +15,10 @@ import argparse
 import os
 import re
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Callable, Iterator
+
+from dotenv import load_dotenv
 
 from app.knowledge.scam_quotes import SCAM_QUOTE_BANK
 from ml.schema import Example, Label, Register, Source, write_jsonl
@@ -216,18 +222,35 @@ def parse_response(raw_text: str) -> list[str]:
     return lines
 
 
-def call_gpt_oss(messages: list[dict], api_key: str, base_url: str, model: str) -> str:
-    """Real network call to an OpenAI-compatible chat completions endpoint."""
-    import requests
+def call_bedrock_gpt_oss(
+    messages: list[dict],
+    region: str,
+    model: str = "openai.gpt-oss-120b",
+    project: str | None = None,
+    client=None,
+) -> str:
+    """Real network call to GPT-OSS-120B via AWS Bedrock's bedrock-mantle
+    endpoint (AWS's recommended endpoint for this model), using the
+    OpenAI-compatible Chat Completions interface.
 
-    response = requests.post(
-        f"{base_url.rstrip('/')}/chat/completions",
-        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-        json={"model": model, "messages": messages, "temperature": 0.9},
-        timeout=60,
-    )
-    response.raise_for_status()
-    return response.json()["choices"][0]["message"]["content"]
+    Credentials are never passed explicitly here — aws_bedrock_token_generator
+    uses boto3's default credential chain (AWS_ACCESS_KEY_ID /
+    AWS_SECRET_ACCESS_KEY / AWS_REGION from the environment) to mint a
+    short-lived bearer token, so nothing secret needs to live in this
+    codebase.
+    """
+    if client is None:
+        from aws_bedrock_token_generator import provide_token
+        from openai import OpenAI
+
+        client = OpenAI(
+            api_key=provide_token(region=region),
+            base_url=f"https://bedrock-mantle.{region}.api.aws/v1",
+            project=project,
+        )
+
+    response = client.chat.completions.create(model=model, messages=messages, temperature=0.9)
+    return response.choices[0].message.content
 
 
 class SyntheticGenerator:
@@ -248,19 +271,21 @@ class SyntheticGenerator:
 
 
 def main() -> None:
+    load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out", default="data/synthetic/synthetic.jsonl")
-    parser.add_argument("--api-key", default=os.environ.get("GPT_OSS_API_KEY", ""))
-    parser.add_argument("--base-url", required=True)
-    parser.add_argument("--model", default="gpt-oss-120b")
+    parser.add_argument("--region", default=os.environ.get("AWS_REGION", os.environ.get("AWS_DEFAULT_REGION", "")))
+    parser.add_argument("--model", default="openai.gpt-oss-120b")
+    parser.add_argument("--project", default=os.environ.get("BEDROCK_PROJECT_ID"))
     parser.add_argument("--n-per-batch", type=int, default=40)
     args = parser.parse_args()
 
-    if not args.api_key:
-        raise SystemExit("Set --api-key or GPT_OSS_API_KEY")
+    if not args.region:
+        raise SystemExit("Set --region or AWS_REGION/AWS_DEFAULT_REGION")
 
     def chat_fn(messages: list[dict]) -> str:
-        return call_gpt_oss(messages, args.api_key, args.base_url, args.model)
+        return call_bedrock_gpt_oss(messages, args.region, args.model, args.project)
 
     generator = SyntheticGenerator(chat_fn=chat_fn)
     all_examples: list[Example] = []

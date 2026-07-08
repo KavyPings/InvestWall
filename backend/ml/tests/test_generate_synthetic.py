@@ -6,6 +6,7 @@ from ml.scripts.generate_synthetic import (
     Archetype,
     SyntheticGenerator,
     build_prompt,
+    call_bedrock_gpt_oss,
     iter_generation_jobs,
     parse_response,
 )
@@ -76,3 +77,43 @@ def test_archetypes_has_at_least_40_entries_with_unique_ids():
     assert len(ARCHETYPES) >= 40
     ids = [a.id for a in ARCHETYPES]
     assert len(ids) == len(set(ids))
+
+
+def test_call_bedrock_gpt_oss_uses_injected_client():
+    captured = {}
+
+    class _FakeMessage:
+        content = "1. Example scam message"
+
+    class _FakeChoice:
+        message = _FakeMessage()
+
+    class _FakeResponse:
+        choices = [_FakeChoice()]
+
+    class _FakeCompletions:
+        def create(self, **kwargs):
+            captured.update(kwargs)
+            return _FakeResponse()
+
+    class _FakeChat:
+        completions = _FakeCompletions()
+
+    class _FakeClient:
+        chat = _FakeChat()
+
+    result = call_bedrock_gpt_oss(
+        messages=[
+            {"role": "system", "content": "sys prompt"},
+            {"role": "user", "content": "user prompt"},
+        ],
+        region="eu-north-1",
+        client=_FakeClient(),
+    )
+
+    assert result == "1. Example scam message"
+    assert captured["model"] == "openai.gpt-oss-120b"
+    assert captured["messages"] == [
+        {"role": "system", "content": "sys prompt"},
+        {"role": "user", "content": "user prompt"},
+    ]

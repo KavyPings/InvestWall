@@ -23,6 +23,17 @@ def test_round_trip_write_and_read():
     assert loaded == examples
 
 
+def test_write_jsonl_creates_missing_parent_directories():
+    examples = [Example(text="hi", label=Label.LEGIT, source=Source.PUBLIC,
+                         register=Register.ENGLISH)]
+    with tempfile.TemporaryDirectory() as tmp:
+        path = os.path.join(tmp, "nested", "sub", "out.jsonl")
+        write_jsonl(examples, path)
+        loaded = read_jsonl(path)
+
+    assert loaded == examples
+
+
 def test_jsonl_lines_are_valid_json():
     examples = [Example(text="hi", label=Label.LEGIT, source=Source.PUBLIC,
                          register=Register.ENGLISH)]

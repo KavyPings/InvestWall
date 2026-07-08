@@ -19,15 +19,28 @@ def test_normalize_sms_spam_maps_labels():
 
 
 def test_normalize_phishing_email_maps_labels():
+    # Real column names from the zefang-liu/phishing-email-dataset schema:
+    # "Email Text" (str) and "Email Type" ("Phishing Email" | "Safe Email").
     rows = [
-        {"text_combined": "Verify your account immediately or it will be suspended", "label": 1},
-        {"text_combined": "Meeting moved to 3pm tomorrow, see you there", "label": 0},
+        {"Email Text": "Verify your account immediately or it will be suspended", "Email Type": "Phishing Email"},
+        {"Email Text": "Meeting moved to 3pm tomorrow, see you there", "Email Type": "Safe Email"},
     ]
     examples = normalize_phishing_email(rows)
 
     assert len(examples) == 2
     assert examples[0].label == Label.SCAM
     assert examples[1].label == Label.LEGIT
+
+
+def test_normalize_phishing_email_skips_blank_or_missing_text():
+    rows = [
+        {"Email Text": "   ", "Email Type": "Phishing Email"},
+        {"Email Text": None, "Email Type": "Safe Email"},
+        {"Email Text": "Real email body here", "Email Type": "Safe Email"},
+    ]
+    examples = normalize_phishing_email(rows)
+    assert len(examples) == 1
+    assert examples[0].text == "Real email body here"
 
 
 def test_normalize_skips_blank_text():

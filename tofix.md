@@ -52,6 +52,18 @@ analysis.
 
 ---
 
+## False positives fixed (2026-07-10)
+
+- ✅ **Bare regulator mention flagged as impersonation.** "sebi my goat" scored 55
+  ("Unverified Authenticity") because `_CLAIM_RE` / `claimAuthorityRegex` matched
+  the bare word "sebi". Rewrote both (backend `authenticity_engine.py` + on-device
+  `LocalKnowledge.kt`) to require actual authority-claim context ("official SEBI
+  circular", "SEBI approved", "registered by SEBI"). "sebi my goat" → 88 now.
+- ✅ **Legit screenshots scored 63.** `missing_exif` + `ela_uniform` fire on every
+  screenshot (no EXIF, uniform ELA). Lowered their weights AND added a
+  **model-override**: when the AI-image model is confident the image is real, the
+  noisy heuristics are pruned. Genuine SEBI-doc screenshot → 88 now.
+
 ## Priority 3 — Legit-disclaimer false positive (both rule engines)
 
 `FINANCIAL_SCAM_RULES` guaranteed-returns regex matches negated/legit text:

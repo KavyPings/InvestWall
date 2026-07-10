@@ -259,6 +259,22 @@ class ImageEngine(Engine):
                 )
             # 0.35–0.55: uncertain — abstain (no signal) to avoid noise.
 
+        # Model override: when a learned model is confident the image is real,
+        # drop the classical heuristics that also fire on legit screenshots /
+        # re-saved images (no EXIF, uniform ELA, smooth noise). The model is far
+        # more reliable than these, and this prevents false-positive scores on
+        # ordinary screenshots (e.g. a genuine SEBI document capture).
+        model_says_real = (
+            (ai_prob is not None and ai_prob <= 0.2)
+            or (deepfake_prob is not None and deepfake_prob <= 0.3)
+        )
+        if model_says_real:
+            noisy = {
+                "ela_uniform", "low_noise_residual", "spectral_anomaly",
+                "missing_exif", "no_camera_metadata", "face_over_symmetry",
+            }
+            bundle.items = [e for e in bundle.items if e.signal not in noisy]
+
     def _metadata_checks(self, bundle: EvidenceBundle, img, data: bytes) -> None:
         exif = None
         try:
@@ -282,15 +298,16 @@ class ImageEngine(Engine):
 
         fmt = (getattr(img, "format", "") or "").upper()
         if not exif or len(list(exif.items())) == 0:
-            # No EXIF at all is common for AI images and screenshots.
-            bundle.add("missing_exif", 0.45,
-                       "Image has no EXIF metadata (common for AI-generated or "
-                       "re-saved images).",
-                       Component.METADATA, weight=0.7)
+            # Missing EXIF is the NORM for screenshots, WhatsApp/social images and
+            # any re-saved image — so it's only a very mild signal on its own.
+            bundle.add("missing_exif", 0.2,
+                       "No embedded camera metadata (normal for screenshots, "
+                       "social media, and re-saved images).",
+                       Component.METADATA, weight=0.3)
         elif not has_camera and fmt in {"PNG", "WEBP"}:
-            bundle.add("no_camera_metadata", 0.4,
-                       "No camera make/model in metadata.",
-                       Component.METADATA, weight=0.6)
+            bundle.add("no_camera_metadata", 0.2,
+                       "No camera make/model in metadata (typical for screenshots).",
+                       Component.METADATA, weight=0.3)
 
     # ---- noise / frequency ----
     def _noise_fft_checks(self, bundle: EvidenceBundle, arr: np.ndarray) -> None:

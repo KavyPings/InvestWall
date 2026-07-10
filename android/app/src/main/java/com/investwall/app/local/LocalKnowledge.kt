@@ -104,8 +104,15 @@ object LocalKnowledge {
 
     val urlRegex = ci("""(https?://\S+|www\.\S+|\b[a-z0-9][a-z0-9\-]*\.[a-z]{2,}(?:/\S*)?)""")
     val ipUrlRegex = ci("""https?://\d{1,3}(\.\d{1,3}){3}""")
+    // An authority *claim* = the message frames itself as an official
+    // communication, not merely mentioning a regulator. "SEBI is my goat" must
+    // NOT match; "official SEBI circular" / "SEBI approved scheme" should.
     val claimAuthorityRegex = ci(
-        """\b(sebi|nse|bse|rbi|nsdl|cdsl|amfi|official (?:notice|circular|announcement))\b""",
+        """\b(?:from the desk of""" +
+        """|official\s+(?:notice|circular|announcement|communication|update|alert|advisory)""" +
+        """|(?:sebi|nse|bse|rbi|nsdl|cdsl|amfi)\b.{0,15}\b(?:registered|approved|certified|verified|circular|notice|order|directive|registration|guideline|scheme|clearance|endorsed|authori[sz]ed)""" +
+        """|(?:registered|approved|certified|verified|endorsed|cleared|authori[sz]ed)\b.{0,15}\bby\s+(?:sebi|nse|bse|rbi|nsdl|cdsl|amfi)""" +
+        """|(?:this is|on behalf of|issued by|message from|notice from|update from)\s+(?:the\s+)?(?:sebi|nse|bse|rbi|nsdl|cdsl|amfi))\b""",
     )
 
     fun isOfficial(domain: String): String? {

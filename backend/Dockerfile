@@ -13,12 +13,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 
 COPY requirements.txt .
+# Single requirements file installs the app + all models. For a smaller image,
+# install a CPU-only torch first:
+#   RUN pip install torch --index-url https://download.pytorch.org/whl/cpu
 RUN pip install -r requirements.txt \
     && python -m spacy download en_core_web_sm
-
-# Uncomment to bake in heavy optional models:
-# COPY requirements-optional.txt .
-# RUN pip install -r requirements-optional.txt
 
 COPY app ./app
 

@@ -20,8 +20,18 @@ from app.knowledge.financial_domains import BRAND_TOKENS, is_official
 
 logger = logging.getLogger("investwall.engine.authenticity")
 
+# An *authority claim* means the message frames itself as an official
+# communication — NOT merely mentioning a regulator. "SEBI is my goat" must not
+# match; "official SEBI circular", "SEBI approved scheme", "registered by SEBI"
+# should. Requires the regulator name near authority/approval/notice context.
+_REGULATORS = r"sebi|nse|bse|rbi|nsdl|cdsl|amfi"
 _CLAIM_RE = re.compile(
-    r"\b(sebi|nse|bse|rbi|nsdl|cdsl|amfi|from the desk of|official (?:notice|circular|announcement))\b",
+    r"\b(?:from the desk of"
+    r"|official\s+(?:notice|circular|announcement|communication|update|alert|advisory)"
+    rf"|(?:{_REGULATORS})\b.{{0,15}}\b(?:registered|approved|certified|verified|circular|"
+    r"notice|order|directive|registration|guideline|scheme|clearance|endorsed|authori[sz]ed)"
+    rf"|(?:registered|approved|certified|verified|endorsed|cleared|authori[sz]ed)\b.{{0,15}}\bby\s+(?:{_REGULATORS})"
+    rf"|(?:this is|on behalf of|issued by|message from|notice from|update from)\s+(?:the\s+)?(?:{_REGULATORS}))\b",
     re.I,
 )
 

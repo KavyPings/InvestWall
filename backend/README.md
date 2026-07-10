@@ -90,30 +90,30 @@ band_color, confidence, primary_threat, component_scores{ai,phishing,source,
 authenticity,metadata}, evidence[]{signal,component,score,reason}, explanation,
 llm_provider, extras`.
 
-## Optional / higher-fidelity features
+## Models & feature flags
 
-Install extras and flip flags in `.env`:
+All models install from the single `requirements.txt` and are **ON by default**
+(each lazy-loads and degrades to rules/heuristics if it can't load). Flip flags in
+`.env`:
 
-```bash
-pip install -r requirements-optional.txt
-```
+| Flag (default) | Effect |
+|------|--------|
+| `ENABLE_TRANSFORMERS=1` | Neural text scam classifier (`TRANSFORMER_MODEL`, falls back to `TRANSFORMER_FALLBACK_MODEL`) |
+| `ENABLE_IMAGE_MODEL=1` | Deepfake model on cropped faces (`IMAGE_MODEL`) + general AI-image model (`IMAGE_AI_MODEL`); also runs on video frames |
+| `ENABLE_WHISPER=1` | Audio speech-to-text → transcript scam analysis (`WHISPER_MODEL`) |
+| `ENABLE_QR=0` | QR decoding in images/PDFs (needs pyzbar + zbar) |
+| `ENABLE_DNS=1` | Live SPF/DMARC lookups |
+| `STORE_RAW_CONTENT=1` | Set `0` to persist only scores/evidence, never raw text/sender |
+| `LLM_PROVIDER=template` | `ollama` (local) or `hosted` for LLM prose |
 
-| Flag | Effect | Needs |
-|------|--------|-------|
-| `ENABLE_TRANSFORMERS=1` | Neural text spam/scam classifier (model from `TRANSFORMER_MODEL`) | transformers + torch |
-| `ENABLE_IMAGE_MODEL=1` | Learned deepfake/AI-image detector (`IMAGE_MODEL`, default `dima806/deepfake_vs_real_image_detection`) | transformers + torch |
-| `ENABLE_WHISPER=1` | Audio speech-to-text → transcript scam analysis (`WHISPER_MODEL`) | faster-whisper |
-| `ENABLE_QR=1` | QR decoding in images/PDFs | pyzbar + zbar |
-| `ENABLE_DNS=1` (default) | Live SPF/DMARC lookups | network |
-| `STORE_RAW_CONTENT=0` | Privacy: persist only scores/evidence, never raw text/sender | — |
-| `LLM_PROVIDER=ollama` | Local Gemma/Qwen/Llama prose | running Ollama |
-| `LLM_PROVIDER=hosted` | Hosted LLM prose | `HOSTED_LLM_API_KEY` |
+`GET /health` reports each model's load state (`transformer_loaded`,
+`image_model_loaded`, `image_ai_model_loaded`). First request after enabling a
+model is slow while weights download/load, then cached. A GPU helps for
+image/video throughput. The Android app calls the backend only for the opt-in
+**deep AI check** and **file analysis** — text/SMS are screened on-device.
 
-`GET /health` reports which flags are on and whether the transformer actually
-loaded (`transformer_loaded`). First request after enabling a model is slow while
-weights download/load, then cached. A GPU is recommended once image/video/audio
-models are wired in. The Android app calls the backend only for the opt-in **deep
-AI check** and **file analysis** — text/SMS are screened on-device.
+> `backend/ml/requirements.txt` is a **separate** offline pipeline for *retraining*
+> the text model — not needed to run the app.
 
 ## Tests
 
@@ -127,9 +127,9 @@ pytest          # runs fully offline against a temp SQLite DB
 docker compose up --build       # api + postgres + redis + nginx (gateway :8080)
 ```
 
-The compose stack builds the API image (baking the spaCy model), provisions
-Postgres + Redis, and fronts everything with Nginx. To bake in heavyweight models,
-uncomment the `requirements-optional.txt` lines in the `Dockerfile`.
+The compose stack builds the API image (installing `requirements.txt`, which
+includes the models, and baking the spaCy model), provisions Postgres + Redis,
+and fronts everything with Nginx.
 
 ## Android integration (Phase 2)
 

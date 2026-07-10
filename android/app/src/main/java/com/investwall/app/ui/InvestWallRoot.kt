@@ -81,13 +81,18 @@ fun InvestWallRoot() {
         ) {
             composable(Routes.DASHBOARD) {
                 DashboardScreen(
-                    onAnalyze = { navController.navigate(Routes.ANALYZE) },
+                    onAnalyze = { kind -> navController.navigate(Routes.analyze(kind.id)) },
                     onOpenReport = { navController.navigate(Routes.report(it)) },
                     onOpenHistory = { navController.navigate(Routes.HISTORY) },
                 )
             }
-            composable(Routes.ANALYZE) {
+            composable(
+                route = Routes.ANALYZE,
+                arguments = listOf(navArgument("kind") { type = NavType.StringType }),
+            ) { backStackEntry ->
+                val kind = AnalyzeKind.fromId(backStackEntry.arguments?.getString("kind"))
                 AnalyzeScreen(
+                    kind = kind,
                     onBack = { navController.popBackStack() },
                     onResult = { id ->
                         navController.navigate(Routes.report(id)) {

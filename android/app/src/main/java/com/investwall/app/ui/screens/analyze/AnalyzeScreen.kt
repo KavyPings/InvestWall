@@ -16,10 +16,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.AttachFile
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.UploadFile
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -36,12 +35,11 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.investwall.app.ui.AnalyzeKind
 import com.investwall.app.ui.UiState
 import com.investwall.app.ui.components.AppTopBar
 import com.investwall.app.ui.components.PrimaryButton
-import com.investwall.app.ui.components.SecondaryButton
 import com.investwall.app.ui.theme.Accent
-import com.investwall.app.ui.theme.Background
 import com.investwall.app.ui.theme.Border
 import com.investwall.app.ui.theme.RiskRed
 import com.investwall.app.ui.theme.Surface
@@ -51,17 +49,16 @@ import com.investwall.app.ui.theme.TextSecondary
 
 @Composable
 fun AnalyzeScreen(
+    kind: AnalyzeKind,
     onBack: () -> Unit,
     onResult: (String) -> Unit,
     viewModel: AnalyzeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    var input by remember { mutableStateOf(TextFieldValue("")) }
 
-    // File picker for image / video / audio / PDF analysis.
     val filePicker = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument(),
-    ) { uri -> if (uri != null) viewModel.analyzeFile(uri) }
+    ) { uri -> if (uri != null) viewModel.analyzeFile(uri, source = kind.id) }
 
     LaunchedEffect(state) {
         val s = state
@@ -71,88 +68,31 @@ fun AnalyzeScreen(
         }
     }
 
+    val loading = state is UiState.Loading
+
     Column(Modifier.fillMaxWidth()) {
-        AppTopBar(title = "Analyze", onBack = onBack)
+        AppTopBar(title = kind.title, onBack = onBack)
         Column(Modifier.padding(16.dp)) {
-            Text(
-                "Paste an SMS, email, WhatsApp forward, or any suspicious financial message. " +
-                    "Text is checked privately on your device — nothing is uploaded.",
-                color = TextSecondary,
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            Spacer(Modifier.height(14.dp))
-            OutlinedTextField(
-                value = input,
-                onValueChange = { input = it },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 160.dp),
-                placeholder = { Text("e.g. \"SEBI approved guaranteed 40% returns…\"", color = TextMuted) },
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Accent,
-                    unfocusedBorderColor = Border,
-                    focusedContainerColor = Surface,
-                    unfocusedContainerColor = Surface,
-                    cursorColor = Accent,
-                    focusedTextColor = TextPrimary,
-                    unfocusedTextColor = TextPrimary,
-                ),
-                shape = RoundedCornerShape(12.dp),
-            )
+            Text(kind.subtitle, color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
             Spacer(Modifier.height(16.dp))
 
-            val loading = state is UiState.Loading
-            PrimaryButton(
-                text = if (loading) "Analyzing…" else "Analyze",
-                icon = Icons.Outlined.Search,
-                enabled = input.text.isNotBlank() && !loading,
-                onClick = { viewModel.analyze(input.text) },
-                modifier = Modifier.fillMaxWidth(),
-            )
-
-            Spacer(Modifier.height(20.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                HorizontalDivider(Modifier.weight(1f), color = Border)
-                Text("  or  ", color = TextMuted, style = MaterialTheme.typography.labelSmall)
-                HorizontalDivider(Modifier.weight(1f), color = Border)
+            if (kind.isText) {
+                TextSection(loading = loading, onAnalyze = viewModel::analyze)
+            } else {
+                FileSection(
+                    kind = kind,
+                    loading = loading,
+                    onChoose = { filePicker.launch(kind.mimeTypes) },
+                )
             }
-            Spacer(Modifier.height(20.dp))
-
-            Text(
-                "Analyze a file — image, video, voice note, or PDF.",
-                color = TextSecondary,
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            Spacer(Modifier.height(10.dp))
-            SecondaryButton(
-                text = "Choose a file",
-                icon = Icons.Outlined.AttachFile,
-                enabled = !loading,
-                onClick = {
-                    filePicker.launch(
-                        arrayOf("image/*", "video/*", "audio/*", "application/pdf"),
-                    )
-                },
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Spacer(Modifier.height(10.dp))
-            Text(
-                "Tip: you can also Share content from WhatsApp, your gallery, or any app into InvestWall.",
-                color = TextMuted,
-                style = MaterialTheme.typography.labelSmall,
-            )
 
             if (loading) {
-                Spacer(Modifier.height(20.dp))
+                Spacer(Modifier.height(22.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    CircularProgressIndicator(
-                        color = Accent,
-                        strokeWidth = 2.dp,
-                        modifier = Modifier.size(18.dp),
-                    )
+                    CircularProgressIndicator(color = Accent, strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(12.dp))
                     Text(
-                        "Running multimodal detection & fusion…",
+                        if (kind.isText) "Checking on your device…" else "Running detection & fusion…",
                         color = TextSecondary,
                         style = MaterialTheme.typography.bodyMedium,
                     )
@@ -177,4 +117,52 @@ fun AnalyzeScreen(
             }
         }
     }
+}
+
+@Composable
+private fun TextSection(loading: Boolean, onAnalyze: (String, String?) -> Unit) {
+    var input by remember { mutableStateOf(TextFieldValue("")) }
+    OutlinedTextField(
+        value = input,
+        onValueChange = { input = it },
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 160.dp),
+        placeholder = { Text("e.g. \"SEBI approved guaranteed 40% returns…\"", color = TextMuted) },
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = Accent,
+            unfocusedBorderColor = Border,
+            focusedContainerColor = Surface,
+            unfocusedContainerColor = Surface,
+            cursorColor = Accent,
+            focusedTextColor = TextPrimary,
+            unfocusedTextColor = TextPrimary,
+        ),
+        shape = RoundedCornerShape(12.dp),
+    )
+    Spacer(Modifier.height(16.dp))
+    PrimaryButton(
+        text = if (loading) "Analyzing…" else "Analyze",
+        icon = Icons.Outlined.Search,
+        enabled = input.text.isNotBlank() && !loading,
+        onClick = { onAnalyze(input.text, "manual") },
+        modifier = Modifier.fillMaxWidth(),
+    )
+}
+
+@Composable
+private fun FileSection(kind: AnalyzeKind, loading: Boolean, onChoose: () -> Unit) {
+    PrimaryButton(
+        text = kind.pickerLabel,
+        icon = Icons.Outlined.UploadFile,
+        enabled = !loading,
+        onClick = onChoose,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    Spacer(Modifier.height(12.dp))
+    Text(
+        "Tip: you can also Share content from WhatsApp, your gallery, or any app into InvestWall.",
+        color = TextMuted,
+        style = MaterialTheme.typography.labelSmall,
+    )
 }

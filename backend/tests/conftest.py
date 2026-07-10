@@ -14,6 +14,7 @@ os.environ.setdefault("LLM_PROVIDER", "template")
 os.environ.setdefault("ENABLE_TRANSFORMERS", "0")
 os.environ.setdefault("ENABLE_WHISPER", "0")
 os.environ.setdefault("ENABLE_IMAGE_MODEL", "0")
+os.environ.setdefault("ENABLE_AUDIO_MODEL", "0")
 
 _db_fd, _db_path = tempfile.mkstemp(suffix=".db")
 os.close(_db_fd)

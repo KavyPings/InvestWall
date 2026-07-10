@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     enable_transformers: bool = True
     enable_whisper: bool = True
     enable_image_model: bool = True
+    enable_audio_model: bool = True
     enable_qr: bool = False
     enable_dns: bool = True
 
@@ -47,6 +48,8 @@ class Settings(BaseSettings):
     # General AI-generated-image detector (whole image; catches non-face
     # synthetic content like fake charts / news screenshots).
     image_ai_model: str = "Organika/sdxl-detector"
+    # Deepfake/voice-clone audio detector (AASIST/RawNet2-style spoof detection).
+    audio_model: str = "MelodyMachine/Deepfake-audio-detection-V2"
 
     # Privacy — when False, raw input previews and sender are NOT persisted;
     # only scores/evidence reasons/metadata are stored.

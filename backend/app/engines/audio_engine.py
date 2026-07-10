@@ -1,10 +1,11 @@
 """Module 4 — Audio Analysis Engine (PRD §6).
 
-Pipeline: decode -> spectral/MFCC feature extraction (librosa) -> synthetic-voice
-/ vocoder-artifact heuristics -> optional Whisper speech-to-text -> transcript
-scam analysis (reuses TextEngine) -> LLM explanation.
+Pipeline: decode -> spectral/MFCC heuristics -> learned deepfake/voice-clone
+detector (AASIST/RawNet2-style spoof model) -> optional Whisper speech-to-text
+-> transcript scam analysis (reuses TextEngine) -> LLM explanation.
 
-Whisper is optional (ENABLE_WHISPER). Everything else runs on base requirements.
+The deepfake model + Whisper are flag-gated and lazy-loaded; the engine degrades
+to the spectral heuristics if they're unavailable.
 """
 from __future__ import annotations
 
@@ -21,6 +22,51 @@ logger = logging.getLogger("investwall.engine.audio")
 
 _WHISPER = None
 _WHISPER_TRIED = False
+_AUDIO_MODEL = None
+_AUDIO_MODEL_TRIED = False
+
+_FAKE_TOKENS = ("fake", "spoof", "synthetic", "clone", "generated", "deepfake", "ai")
+_REAL_TOKENS = ("real", "bonafide", "genuine", "human", "authentic")
+
+
+def _get_audio_model():
+    global _AUDIO_MODEL, _AUDIO_MODEL_TRIED
+    if _AUDIO_MODEL is not None or _AUDIO_MODEL_TRIED:
+        return _AUDIO_MODEL
+    _AUDIO_MODEL_TRIED = True
+    try:
+        from transformers import pipeline
+
+        _AUDIO_MODEL = pipeline(
+            "audio-classification", model=get_settings().audio_model, device=-1
+        )
+        logger.info("Loaded audio deepfake classifier")
+    except Exception as exc:  # pragma: no cover
+        logger.warning("Audio deepfake model unavailable: %s", exc)
+        _AUDIO_MODEL = None
+    return _AUDIO_MODEL
+
+
+def audio_model_loaded() -> bool:
+    return _AUDIO_MODEL is not None
+
+
+def _spoof_prob(preds) -> float | None:
+    if not preds:
+        return None
+    fake = real = None
+    for item in preds:
+        label = str(item.get("label", "")).lower()
+        score = float(item.get("score", 0.0))
+        if any(t in label for t in _FAKE_TOKENS):
+            fake = max(fake or 0.0, score)
+        elif any(t in label for t in _REAL_TOKENS):
+            real = max(real or 0.0, score)
+    if fake is not None:
+        return fake
+    if real is not None:
+        return 1.0 - real
+    return None
 
 
 def _get_whisper():
@@ -64,10 +110,46 @@ class AudioEngine(Engine):
         bundle.extras["duration_sec"] = round(len(y) / sr, 2) if sr else None
         self._spectral_checks(bundle, y, sr)
 
+        # Learned deepfake / voice-clone detector (dominant signal when present).
+        if settings.enable_audio_model:
+            self._deepfake_model_check(bundle, y, sr)
+
         # Optional transcription + transcript scam analysis.
         if settings.enable_whisper:
             self._transcribe_and_analyze(bundle, data, payload)
         return bundle
+
+    def _deepfake_model_check(self, bundle: EvidenceBundle, y: np.ndarray, sr: int) -> None:
+        model = _get_audio_model()
+        if model is None:
+            return
+        try:
+            prob = _spoof_prob(model({"raw": y, "sampling_rate": sr}))
+        except Exception as exc:  # pragma: no cover
+            logger.warning("Audio model inference failed: %s", exc)
+            return
+        if prob is None:
+            return
+        # Confidence-tiered so a borderline call doesn't over-penalise real voice.
+        if prob >= 0.8:
+            weight, reason = 2.0, (
+                f"Voice/audio spoof detector strongly flags this as synthetic or "
+                f"cloned ({int(prob * 100)}% confidence).")
+        elif prob >= 0.6:
+            weight, reason = 0.9, (
+                f"Voice/audio spoof detector weakly leans toward synthetic "
+                f"({int(prob * 100)}%, low confidence).")
+        else:
+            weight, reason = 0.6, (
+                f"Voice/audio spoof detector considers the voice likely genuine "
+                f"({int((1 - prob) * 100)}% real).")
+        bundle.add("audio_deepfake_model", prob, reason,
+                   Component.AI, weight=weight, spoof_prob=round(prob, 4))
+
+        # Model override: a confident "genuine voice" verdict supersedes the
+        # unreliable spectral heuristic (which can flag noisy-but-real audio).
+        if prob <= 0.2:
+            bundle.items = [e for e in bundle.items if e.signal != "synthetic_voice_spectral"]
 
     def _load_audio(self, data: bytes):
         try:

@@ -28,8 +28,8 @@ class AnalyzeViewModel @Inject constructor(
         launchAnalyze { repository.analyzeTextLocally(text.trim(), source) }
     }
 
-    fun analyzeFile(uri: Uri) {
-        launchAnalyze { repository.analyzeFile(uri, source = "file") }
+    fun analyzeFile(uri: Uri, source: String? = "file") {
+        launchAnalyze { repository.analyzeFile(uri, source = source) }
     }
 
     private fun launchAnalyze(block: suspend () -> com.investwall.app.domain.model.TrustReport) {

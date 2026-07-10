@@ -105,8 +105,10 @@ Weights are gitignored, so the pipeline is sound but actual numbers are unverifi
       Mitigated with conservative thresholds (strong flag only ≥0.8) + fusion.
       To really fix: better face aligner (RetinaFace/MTCNN) or fine-tune the
       detector on Haar-style crops. [ ]
-- [ ] **Audio** still heuristics-only — wire AASIST/RawNet2 (spoof) + the
-      Whisper→transcript path is enabled but needs `faster-whisper` installed.
+- ✅ **Audio** now runs a learned deepfake/voice-clone model
+      (`MelodyMachine/Deepfake-audio-detection-V2`, wav2vec2 spoof detector) with
+      confidence-tiered weighting + model-override of the spectral heuristic.
+      Whisper→transcript path still needs `faster-whisper` installed to activate.
 
 ---
 

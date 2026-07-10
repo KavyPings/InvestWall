@@ -100,6 +100,7 @@ All models install from the single `requirements.txt` and are **ON by default**
 |------|--------|
 | `ENABLE_TRANSFORMERS=1` | Neural text scam classifier (`TRANSFORMER_MODEL`, falls back to `TRANSFORMER_FALLBACK_MODEL`) |
 | `ENABLE_IMAGE_MODEL=1` | Deepfake model on cropped faces (`IMAGE_MODEL`) + general AI-image model (`IMAGE_AI_MODEL`); also runs on video frames |
+| `ENABLE_AUDIO_MODEL=1` | Deepfake / voice-clone spoof detector (`AUDIO_MODEL`) |
 | `ENABLE_WHISPER=1` | Audio speech-to-text → transcript scam analysis (`WHISPER_MODEL`) |
 | `ENABLE_QR=0` | QR decoding in images/PDFs (needs pyzbar + zbar) |
 | `ENABLE_DNS=1` | Live SPF/DMARC lookups |

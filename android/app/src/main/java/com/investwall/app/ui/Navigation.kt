@@ -9,7 +9,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 /** Central route definitions. */
 object Routes {
     const val DASHBOARD = "dashboard"
-    const val ANALYZE = "analyze"
+    const val ANALYZE = "analyze/{kind}"
+    fun analyze(kind: String) = "analyze/$kind"
     const val HISTORY = "history"
     const val SETTINGS = "settings"
     const val REPORT = "report/{id}"

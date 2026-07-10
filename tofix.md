@@ -105,10 +105,15 @@ Weights are gitignored, so the pipeline is sound but actual numbers are unverifi
       Mitigated with conservative thresholds (strong flag only ≥0.8) + fusion.
       To really fix: better face aligner (RetinaFace/MTCNN) or fine-tune the
       detector on Haar-style crops. [ ]
-- ✅ **Audio** now runs a learned deepfake/voice-clone model
-      (`MelodyMachine/Deepfake-audio-detection-V2`, wav2vec2 spoof detector) with
-      confidence-tiered weighting + model-override of the spectral heuristic.
+- ✅ **Audio** runs a learned deepfake/voice-clone model with confidence-tiered
+      weighting + model-override of the spectral heuristic. **Model swapped**
+      `MelodyMachine/Deepfake-audio-detection-V2` → **`motheecreator/Deepfake-audio-detection`**
+      after the former false-negatived a real modern-TTS MP3 (said "real 1.0").
+      New model validated: AI file → fake 1.0; 6 real LibriSpeech clips → ~0.001.
       Whisper→transcript path still needs `faster-whisper` installed to activate.
+- [ ] Audio is the hardest modality — validated on only 1 AI file + 6 real clips.
+      Build an **ensemble** (2-3 spoof models, take max) and a proper eval set;
+      no single off-the-shelf model generalizes to all TTS engines.
 
 ---
 

@@ -48,8 +48,10 @@ class Settings(BaseSettings):
     # General AI-generated-image detector (whole image; catches non-face
     # synthetic content like fake charts / news screenshots).
     image_ai_model: str = "Organika/sdxl-detector"
-    # Deepfake/voice-clone audio detector (AASIST/RawNet2-style spoof detection).
-    audio_model: str = "MelodyMachine/Deepfake-audio-detection-V2"
+    # Deepfake/voice-clone audio detector (wav2vec2 spoof detection). This model
+    # correctly flags modern TTS/AI voices and passes real human speech; the
+    # earlier MelodyMachine model false-negatived on modern AI audio.
+    audio_model: str = "motheecreator/Deepfake-audio-detection"
 
     # Privacy — when False, raw input previews and sender are NOT persisted;
     # only scores/evidence reasons/metadata are stored.

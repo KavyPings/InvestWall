@@ -20,12 +20,20 @@ from app.engines.base import Engine, Payload
 
 logger = logging.getLogger("investwall.engine.image")
 
-# Lazily-initialised deepfake/AI image classifier (optional, flag-gated).
-_IMAGE_MODEL = None
+# Lazily-initialised classifiers (optional, flag-gated).
+_IMAGE_MODEL = None            # deepfake / face-manipulation (runs on face crops)
 _IMAGE_MODEL_TRIED = False
+_IMAGE_AI_MODEL = None          # general AI-generated-image (runs on whole image)
+_IMAGE_AI_MODEL_TRIED = False
 
 _FAKE_LABEL_TOKENS = ("fake", "ai", "artificial", "synthetic", "generated", "spoof", "deepfake")
 _REAL_LABEL_TOKENS = ("real", "human", "authentic", "genuine", "natural")
+
+
+def _load_pipeline(model_name: str):
+    from transformers import pipeline
+
+    return pipeline("image-classification", model=model_name, device=-1)
 
 
 def _get_image_model():
@@ -34,21 +42,100 @@ def _get_image_model():
         return _IMAGE_MODEL
     _IMAGE_MODEL_TRIED = True
     try:
-        from transformers import pipeline
-
         from app.config import get_settings
 
-        model = get_settings().image_model
-        _IMAGE_MODEL = pipeline("image-classification", model=model, device=-1)
-        logger.info("Loaded image classifier: %s", model)
+        _IMAGE_MODEL = _load_pipeline(get_settings().image_model)
+        logger.info("Loaded deepfake image classifier")
     except Exception as exc:  # pragma: no cover
-        logger.warning("Image model unavailable: %s", exc)
+        logger.warning("Deepfake image model unavailable: %s", exc)
         _IMAGE_MODEL = None
     return _IMAGE_MODEL
 
 
+def _get_image_ai_model():
+    global _IMAGE_AI_MODEL, _IMAGE_AI_MODEL_TRIED
+    if _IMAGE_AI_MODEL is not None or _IMAGE_AI_MODEL_TRIED:
+        return _IMAGE_AI_MODEL
+    _IMAGE_AI_MODEL_TRIED = True
+    try:
+        from app.config import get_settings
+
+        _IMAGE_AI_MODEL = _load_pipeline(get_settings().image_ai_model)
+        logger.info("Loaded AI-generated-image classifier")
+    except Exception as exc:  # pragma: no cover
+        logger.warning("AI-image model unavailable: %s", exc)
+        _IMAGE_AI_MODEL = None
+    return _IMAGE_AI_MODEL
+
+
 def image_model_loaded() -> bool:
     return _IMAGE_MODEL is not None
+
+
+def image_ai_model_loaded() -> bool:
+    return _IMAGE_AI_MODEL is not None
+
+
+def _fake_prob(preds) -> float | None:
+    """Extract P(fake) from a classifier's predictions using label tokens."""
+    if not preds:
+        return None
+    fake = real = None
+    for item in preds:
+        label = str(item.get("label", "")).lower()
+        score = float(item.get("score", 0.0))
+        if any(t in label for t in _FAKE_LABEL_TOKENS):
+            fake = max(fake or 0.0, score)
+        elif any(t in label for t in _REAL_LABEL_TOKENS):
+            real = max(real or 0.0, score)
+    if fake is not None:
+        return fake
+    if real is not None:
+        return 1.0 - real
+    top = max(preds, key=lambda p: p.get("score", 0.0))
+    return float(top.get("score", 0.0))
+
+
+def score_image_models(rgb: "np.ndarray") -> tuple[float | None, int, float | None]:
+    """Shared model scoring for images & video frames.
+
+    Returns ``(deepfake_prob, num_faces, ai_generated_prob)``:
+    - ``deepfake_prob``: max P(fake) over detected face crops, or None when no
+      face is found (we abstain rather than feed a non-face to a face model).
+    - ``ai_generated_prob``: P(AI-generated) over the whole image (non-face
+      synthetic content), or None if that model is unavailable.
+    """
+    from PIL import Image
+
+    from app.config import get_settings
+    from app.engines.face_detect import crop_face, detect_faces
+
+    settings = get_settings()
+    rgb8 = rgb.astype("uint8") if rgb.dtype != np.uint8 else rgb
+
+    deepfake_prob = None
+    num_faces = 0
+    if settings.enable_image_model:
+        faces = detect_faces(rgb8)
+        num_faces = len(faces)
+        model = _get_image_model()
+        if model is not None and faces:
+            probs = []
+            for box in sorted(faces, key=lambda b: b[2] * b[3], reverse=True)[:5]:
+                crop = crop_face(rgb8, box)
+                if crop.size == 0:
+                    continue
+                probs.append(_fake_prob(model(Image.fromarray(crop))) or 0.0)
+            if probs:
+                deepfake_prob = max(probs)
+
+    ai_prob = None
+    if settings.enable_image_model:
+        ai_model = _get_image_ai_model()
+        if ai_model is not None:
+            ai_prob = _fake_prob(ai_model(Image.fromarray(rgb8)))
+
+    return deepfake_prob, num_faces, ai_prob
 
 
 # AI-generation software / watermark fingerprints found in metadata or bytes.
@@ -94,9 +181,9 @@ class ImageEngine(Engine):
         self._ela_check(bundle, rgb)
         self._face_checks(bundle, arr)
 
-        # --- Learned deepfake/AI-image model (optional, flag-gated) ---
+        # --- Learned models: deepfake (on face crops) + AI-generated (whole) ---
         if get_settings().enable_image_model:
-            self._ai_model_check(bundle, rgb)
+            self._model_ensemble(bundle, np.asarray(rgb))
         return bundle
 
     # ---- metadata ----
@@ -110,54 +197,67 @@ class ImageEngine(Engine):
                            Component.AI, weight=1.4, token=name)
                 return
 
-    def _ai_model_check(self, bundle: EvidenceBundle, rgb) -> None:
-        """Run the learned deepfake/AI-image classifier and emit an AI signal.
-
-        Works with any HF image-classification model: we read the probability of
-        the 'fake/ai/synthetic' class (or 1 - 'real' when only a real class is
-        present). This signal carries a high weight so it dominates the classical
-        heuristics when the model is confident.
-        """
-        clf = _get_image_model()
-        if clf is None:
-            return
+    def _model_ensemble(self, bundle: EvidenceBundle, rgb: "np.ndarray") -> None:
+        """Face-crop deepfake model (abstains without a face) + whole-image
+        AI-generated detector. The stronger dominates fusion via the weighted-max
+        component blend."""
         try:
-            preds = clf(rgb)
-            if not preds:
-                return
-            fake_score = None
-            real_score = None
-            for item in preds:
-                label = str(item.get("label", "")).lower()
-                score = float(item.get("score", 0.0))
-                if any(t in label for t in _FAKE_LABEL_TOKENS):
-                    fake_score = max(fake_score or 0.0, score)
-                elif any(t in label for t in _REAL_LABEL_TOKENS):
-                    real_score = max(real_score or 0.0, score)
-            if fake_score is None and real_score is not None:
-                fake_score = 1.0 - real_score
-            if fake_score is None:
-                # Unknown label scheme — use the top prediction as-is.
-                top = max(preds, key=lambda p: p.get("score", 0.0))
-                fake_score = float(top.get("score", 0.0))
-                label_note = f" (top class '{top.get('label')}')"
-            else:
-                label_note = ""
-
-            model = get_settings().image_model
-            if fake_score >= 0.5:
-                reason = (f"Deepfake detector flags this image as likely "
-                          f"manipulated/AI-generated ({int(fake_score * 100)}% "
-                          f"confidence){label_note}.")
-            else:
-                reason = (f"Deepfake detector considers this image likely "
-                          f"authentic ({int((1 - fake_score) * 100)}% real).")
-            bundle.add(
-                "deepfake_model", fake_score, reason,
-                Component.AI, weight=2.0, model=model, fake_prob=round(fake_score, 4),
-            )
+            deepfake_prob, num_faces, ai_prob = score_image_models(rgb)
         except Exception as exc:  # pragma: no cover
             logger.warning("Image model inference failed: %s", exc)
+            return
+
+        bundle.extras["faces_detected"] = num_faces
+
+        # Deepfake / face-manipulation — only when a face was actually found.
+        # Confidence-tiered weighting: a decisive call dominates fusion, but a
+        # borderline one (0.5-0.7) is down-weighted so it doesn't false-positive
+        # ordinary photos of people.
+        # Off-the-shelf deepfake detectors are confident on true fakes (~0.97) but
+        # have a false-positive tail on ordinary photos because the Haar crop
+        # alignment differs from their training alignment. So only a *high*-
+        # confidence call carries strong weight; the mid-band is treated as a weak
+        # lean, and low scores as (mild) authenticity evidence.
+        if deepfake_prob is not None:
+            if deepfake_prob >= 0.8:
+                weight = 2.0
+                reason = (f"Deepfake detector strongly flags the face(s) as "
+                          f"manipulated ({int(deepfake_prob * 100)}% confidence, "
+                          f"{num_faces} face(s) checked).")
+            elif deepfake_prob >= 0.6:
+                weight = 0.8
+                reason = (f"Deepfake detector weakly leans toward manipulated "
+                          f"faces ({int(deepfake_prob * 100)}%, low confidence) "
+                          f"across {num_faces} face(s).")
+            else:
+                weight = 0.6
+                reason = (f"Deepfake detector considers the face(s) likely "
+                          f"authentic ({int((1 - deepfake_prob) * 100)}% real).")
+            bundle.add(
+                "deepfake_model", deepfake_prob, reason,
+                Component.AI, weight=weight, faces=num_faces,
+                fake_prob=round(deepfake_prob, 4),
+            )
+        elif num_faces == 0 and get_settings().enable_image_model:
+            bundle.extras["deepfake_model"] = "skipped (no face detected)"
+
+        # General AI-generated-image detector — whole image (charts, screenshots…)
+        if ai_prob is not None:
+            if ai_prob >= 0.55:
+                bundle.add(
+                    "ai_generated_model", ai_prob,
+                    f"AI-image detector flags this as likely AI-generated "
+                    f"({int(ai_prob * 100)}% confidence).",
+                    Component.AI, weight=1.5, ai_prob=round(ai_prob, 4),
+                )
+            elif ai_prob <= 0.35:
+                bundle.add(
+                    "ai_generated_model", ai_prob,
+                    f"AI-image detector considers this likely a real photo "
+                    f"({int((1 - ai_prob) * 100)}%).",
+                    Component.AI, weight=0.8, ai_prob=round(ai_prob, 4),
+                )
+            # 0.35–0.55: uncertain — abstain (no signal) to avoid noise.
 
     def _metadata_checks(self, bundle: EvidenceBundle, img, data: bytes) -> None:
         exif = None

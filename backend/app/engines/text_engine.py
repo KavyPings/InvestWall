@@ -63,15 +63,20 @@ def _get_transformer():
     if _TRANSFORMER is not None or _TRANSFORMER_TRIED:
         return _TRANSFORMER
     _TRANSFORMER_TRIED = True
-    try:
-        from transformers import pipeline
+    settings = get_settings()
+    candidates = [settings.transformer_model, settings.transformer_fallback_model]
+    for model in candidates:
+        if not model:
+            continue
+        try:
+            from transformers import pipeline
 
-        model = get_settings().transformer_model
-        _TRANSFORMER = pipeline("text-classification", model=model, truncation=True)
-        logger.info("Loaded transformer classifier: %s", model)
-    except Exception as exc:  # pragma: no cover
-        logger.warning("Transformer classifier unavailable: %s", exc)
-        _TRANSFORMER = None
+            _TRANSFORMER = pipeline("text-classification", model=model, truncation=True)
+            logger.info("Loaded transformer classifier: %s", model)
+            return _TRANSFORMER
+        except Exception as exc:  # pragma: no cover
+            logger.warning("Transformer '%s' unavailable: %s", model, exc)
+    _TRANSFORMER = None
     return _TRANSFORMER
 
 

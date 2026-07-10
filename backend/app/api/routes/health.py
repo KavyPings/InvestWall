@@ -28,6 +28,7 @@ def health() -> HealthResponse:
             "store_raw_content": settings.store_raw_content,
             "transformer_loaded": _loaded("app.engines.text_engine", "transformer_loaded"),
             "image_model_loaded": _loaded("app.engines.image_engine", "image_model_loaded"),
+            "image_ai_model_loaded": _loaded("app.engines.image_engine", "image_ai_model_loaded"),
         },
         database=db,
     )

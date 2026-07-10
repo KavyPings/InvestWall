@@ -63,6 +63,10 @@ class VideoEngine(Engine):
                 return bundle
 
             self._face_and_temporal(bundle, cv2, frames, fps)
+
+            # Learned model pass: face-crop → deepfake model per frame.
+            if settings.enable_image_model:
+                self._model_pass(bundle, cv2, frames)
         finally:
             if tmp_path and os.path.exists(tmp_path):
                 try:
@@ -70,6 +74,46 @@ class VideoEngine(Engine):
                 except OSError:  # pragma: no cover
                     pass
         return bundle
+
+    def _model_pass(self, bundle, cv2, frames) -> None:
+        """Run the image deepfake/AI models over a subset of frames and
+        aggregate (max fake probability across frames)."""
+        from app.engines.image_engine import score_image_models
+
+        # Cap the number of frames sent to the model to keep latency reasonable.
+        step = max(1, len(frames) // 6)
+        sampled = frames[::step][:6]
+
+        deepfake_probs, ai_probs, face_frames = [], [], 0
+        for frame in sampled:
+            rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            try:
+                df, nfaces, ai = score_image_models(rgb)
+            except Exception:  # pragma: no cover
+                continue
+            if nfaces:
+                face_frames += 1
+            if df is not None:
+                deepfake_probs.append(df)
+            if ai is not None:
+                ai_probs.append(ai)
+
+        if deepfake_probs:
+            top = max(deepfake_probs)
+            if top >= 0.5:
+                reason = (f"Deepfake model flags manipulated faces in "
+                          f"{sum(p >= 0.5 for p in deepfake_probs)}/{len(deepfake_probs)} "
+                          f"sampled frames (peak {int(top * 100)}%).")
+            else:
+                reason = (f"Deepfake model considers the faces authentic across "
+                          f"sampled frames (peak {int(top * 100)}% fake).")
+            bundle.add("video_deepfake_model", top, reason,
+                       Component.AI, weight=2.2, frames=len(deepfake_probs))
+        if ai_probs and max(ai_probs) >= 0.6:
+            bundle.add("video_ai_generated_model", max(ai_probs),
+                       f"AI-image model flags frames as likely AI-generated "
+                       f"(peak {int(max(ai_probs) * 100)}%).",
+                       Component.AI, weight=1.4)
 
     @staticmethod
     def _sample_indices(total: int, n: int) -> list[int]:
